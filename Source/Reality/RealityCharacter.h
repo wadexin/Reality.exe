@@ -87,6 +87,14 @@ protected:
 	/** Restores the focused Actor's active Scale cycle. */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* DeveloperScaleRestoreAction;
+
+	/** Cycles the focused Actor's Gravity preset. */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* DeveloperGravityCycleAction;
+
+	/** Restores the focused Actor's Gravity cycle. */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* DeveloperGravityRestoreAction;
 	
 public:
 	/** Adds the interaction mapping context for the locally controlled player. */
@@ -136,6 +144,8 @@ protected:
 	void DoApplyDeveloperScaleDouble();
 	void DoApplyDeveloperScaleQuadruple();
 	void DoRestoreDeveloperScale();
+	void DoCycleDeveloperGravity();
+	void DoRestoreDeveloperGravity();
 
 protected:
 
@@ -177,6 +187,12 @@ public:
 
 	/** Returns the Enhanced Input action used to restore Scale. */
 	UInputAction* GetDeveloperScaleRestoreAction() const { return DeveloperScaleRestoreAction; }
+
+	/** Returns the Enhanced Input action used to cycle Gravity. */
+	UInputAction* GetDeveloperGravityCycleAction() const { return DeveloperGravityCycleAction; }
+
+	/** Returns the Enhanced Input action used to restore Gravity. */
+	UInputAction* GetDeveloperGravityRestoreAction() const { return DeveloperGravityRestoreAction; }
 
 };
 

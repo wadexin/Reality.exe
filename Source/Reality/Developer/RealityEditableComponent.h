@@ -24,6 +24,15 @@ enum class ERealityScalePreset : uint8
 	Quadruple UMETA(DisplayName = "4.0x")
 };
 
+/** Local gravity states supported by the prototype rigid-body Gravity modification. */
+UENUM(BlueprintType)
+enum class ERealityGravityPreset : uint8
+{
+	Normal,
+	Low,
+	Zero
+};
+
 /** Exact collision state captured for one owner-local primitive during an active modification cycle. */
 USTRUCT()
 struct FRealityOriginalCollisionState
@@ -42,6 +51,26 @@ struct FRealityOriginalCollisionState
 	TWeakObjectPtr<UPrimitiveComponent> PrimitiveComponent;
 
 	ECollisionEnabled::Type CollisionEnabled = ECollisionEnabled::NoCollision;
+};
+
+/** Exact gravity-enabled state captured for one eligible simulated primitive. */
+USTRUCT()
+struct FRealityOriginalGravityState
+{
+	GENERATED_BODY()
+
+	FRealityOriginalGravityState() = default;
+
+	FRealityOriginalGravityState(UPrimitiveComponent* InPrimitiveComponent, const bool bInGravityEnabled)
+		: PrimitiveComponent(InPrimitiveComponent)
+		, bGravityEnabled(bInGravityEnabled)
+	{
+	}
+
+	UPROPERTY()
+	TWeakObjectPtr<UPrimitiveComponent> PrimitiveComponent;
+
+	bool bGravityEnabled = false;
 };
 
 /**
@@ -108,6 +137,26 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Scale")
 	FVector GetOriginalScale() const;
 
+	/** Applies Normal, Low, or Zero gravity to directly owned simulated primitives. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Gravity")
+	bool ApplyGravityModification(ERealityGravityPreset Preset, AActor* InstigatingActor);
+
+	/** Restores every surviving gravity target to its exact captured gravity-enabled state. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Gravity")
+	bool RestoreGravityModification(AActor* InstigatingActor);
+
+	/** Returns whether an explicit Gravity modification cycle is active, including active Normal. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Gravity")
+	bool IsGravityModified() const { return bGravityModified; }
+
+	/** Returns the active Gravity preset. The value is Normal while no cycle is active. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Gravity")
+	ERealityGravityPreset GetCurrentGravityPreset() const { return CurrentGravityPreset; }
+
+	/** Counts directly owned PrimitiveComponents that currently simulate physics. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Gravity")
+	int32 GetEligibleGravityComponentCount() const;
+
 	/** Returns a concise description of the owner and its configured tags for development inspection. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Debug")
 	FString GetEditableDebugDescription() const;
@@ -121,6 +170,9 @@ public:
 
 	/** Copies object classification without exposing mutable internal storage. Intended for C++ setup and tests. */
 	void SetObjectTags(const FGameplayTagContainer& InObjectTags);
+
+protected:
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
 	/** Cheat properties this actor supports. Configure these on the component's Blueprint or instance defaults. */
@@ -147,4 +199,14 @@ private:
 
 	UPROPERTY(Transient)
 	bool bScaleModified = false;
+
+	/** Per-component legitimate gravity state captured once for the active Gravity cycle. */
+	UPROPERTY(Transient)
+	TArray<FRealityOriginalGravityState> OriginalGravityStates;
+
+	UPROPERTY(Transient)
+	ERealityGravityPreset CurrentGravityPreset = ERealityGravityPreset::Normal;
+
+	UPROPERTY(Transient)
+	bool bGravityModified = false;
 };

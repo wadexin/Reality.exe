@@ -30,6 +30,11 @@ namespace DeveloperModeTests
 		return FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"));
 	}
 
+	FGameplayTag GetGravityTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"));
+	}
+
 	void EnableCollisionCapability(URealityEditableComponent* EditableComponent)
 	{
 		FGameplayTagContainer SupportedCheats;
@@ -76,11 +81,15 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	UInputAction* DeveloperCollisionAction = CharacterCDO->GetDeveloperCollisionAction();
 	const TArray<TObjectPtr<UInputAction>>& DeveloperScaleActions = CharacterCDO->GetDeveloperScaleActions();
 	UInputAction* DeveloperScaleRestoreAction = CharacterCDO->GetDeveloperScaleRestoreAction();
+	UInputAction* DeveloperGravityCycleAction = CharacterCDO->GetDeveloperGravityCycleAction();
+	UInputAction* DeveloperGravityRestoreAction = CharacterCDO->GetDeveloperGravityRestoreAction();
 	UInputMappingContext* DeveloperMappingContext = CharacterCDO->GetDeveloperMappingContext();
 	TestNotNull(TEXT("The character owns a Developer Mode Enhanced Input action"), DeveloperModeAction);
 	TestNotNull(TEXT("The character owns a Developer Collision Enhanced Input action"), DeveloperCollisionAction);
 	TestEqual(TEXT("The character owns five Developer Scale preset actions"), DeveloperScaleActions.Num(), 5);
 	TestNotNull(TEXT("The character owns a Developer Scale Restore action"), DeveloperScaleRestoreAction);
+	TestNotNull(TEXT("The character owns a Developer Gravity Cycle action"), DeveloperGravityCycleAction);
+	TestNotNull(TEXT("The character owns a Developer Gravity Restore action"), DeveloperGravityRestoreAction);
 	TestNotNull(TEXT("The character owns a Developer mapping context"), DeveloperMappingContext);
 	if (DeveloperModeAction && DeveloperCollisionAction && DeveloperMappingContext)
 	{
@@ -113,6 +122,20 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 				{
 					return Mapping.Action == DeveloperScaleRestoreAction && Mapping.Key == EKeys::T;
 				}));
+		TestTrue(
+			TEXT("Gravity Cycle defaults to G"),
+			DeveloperMappingContext->GetMappings().ContainsByPredicate(
+				[DeveloperGravityCycleAction](const FEnhancedActionKeyMapping& Mapping)
+				{
+					return Mapping.Action == DeveloperGravityCycleAction && Mapping.Key == EKeys::G;
+				}));
+		TestTrue(
+			TEXT("Gravity Restore defaults to H"),
+			DeveloperMappingContext->GetMappings().ContainsByPredicate(
+				[DeveloperGravityRestoreAction](const FEnhancedActionKeyMapping& Mapping)
+				{
+					return Mapping.Action == DeveloperGravityRestoreAction && Mapping.Key == EKeys::H;
+				}));
 	}
 
 	UClass* FirstPersonCharacterClass = LoadClass<ARealityCharacter>(nullptr, TEXT("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter.BP_FirstPersonCharacter_C"));
@@ -125,11 +148,15 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 		UInputAction* FirstPersonCollisionAction = FirstPersonCDO->GetDeveloperCollisionAction();
 		const TArray<TObjectPtr<UInputAction>>& FirstPersonScaleActions = FirstPersonCDO->GetDeveloperScaleActions();
 		UInputAction* FirstPersonScaleRestoreAction = FirstPersonCDO->GetDeveloperScaleRestoreAction();
+		UInputAction* FirstPersonGravityCycleAction = FirstPersonCDO->GetDeveloperGravityCycleAction();
+		UInputAction* FirstPersonGravityRestoreAction = FirstPersonCDO->GetDeveloperGravityRestoreAction();
 		UInputMappingContext* FirstPersonMappingContext = FirstPersonCDO->GetDeveloperMappingContext();
 		TestNotNull(TEXT("The First Person Blueprint inherits the F1 action"), FirstPersonModeAction);
 		TestNotNull(TEXT("The First Person Blueprint inherits the R action"), FirstPersonCollisionAction);
 		TestEqual(TEXT("The First Person Blueprint inherits five Scale actions"), FirstPersonScaleActions.Num(), 5);
 		TestNotNull(TEXT("The First Person Blueprint inherits the Scale Restore action"), FirstPersonScaleRestoreAction);
+		TestNotNull(TEXT("The First Person Blueprint inherits the Gravity Cycle action"), FirstPersonGravityCycleAction);
+		TestNotNull(TEXT("The First Person Blueprint inherits the Gravity Restore action"), FirstPersonGravityRestoreAction);
 		TestNotNull(TEXT("The First Person Blueprint inherits the Developer mapping context"), FirstPersonMappingContext);
 		if (FirstPersonModeAction && FirstPersonCollisionAction && FirstPersonMappingContext)
 		{
@@ -166,6 +193,20 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 					{
 						return Mapping.Action == FirstPersonScaleRestoreAction && Mapping.Key == EKeys::T;
 					}));
+			TestTrue(
+				TEXT("The First Person Blueprint retains Gravity Cycle on G"),
+				FirstPersonMappingContext->GetMappings().ContainsByPredicate(
+					[FirstPersonGravityCycleAction](const FEnhancedActionKeyMapping& Mapping)
+					{
+						return Mapping.Action == FirstPersonGravityCycleAction && Mapping.Key == EKeys::G;
+					}));
+			TestTrue(
+				TEXT("The First Person Blueprint retains Gravity Restore on H"),
+				FirstPersonMappingContext->GetMappings().ContainsByPredicate(
+					[FirstPersonGravityRestoreAction](const FEnhancedActionKeyMapping& Mapping)
+					{
+						return Mapping.Action == FirstPersonGravityRestoreAction && Mapping.Key == EKeys::H;
+					}));
 		}
 	}
 
@@ -192,6 +233,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Collision invocation does nothing while Developer Mode is inactive"), DeveloperComponent->ToggleFocusedCollisionModification());
 	TestFalse(TEXT("Scale invocation does nothing while Developer Mode is inactive"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
 	TestFalse(TEXT("Scale Restore does nothing while Developer Mode is inactive"), DeveloperComponent->RestoreFocusedScaleModification());
+	TestFalse(TEXT("Gravity Cycle does nothing while Developer Mode is inactive"), DeveloperComponent->CycleFocusedGravityModification());
+	TestFalse(TEXT("Gravity Restore does nothing while Developer Mode is inactive"), DeveloperComponent->RestoreFocusedGravityModification());
 
 	ARealityEditableTestActor* EditableActorA = SpawnEditable(TestWorld, FVector(150.0f, 0.0f, 0.0f));
 	DeveloperComponent->OnDeveloperFocusGained.AddDynamic(EditableActorA, &ARealityEditableTestActor::HandleDeveloperFocusGained);
@@ -234,6 +277,25 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Developer Scale Apply uses Cheat.Scale"), EditableActorA->LastCheatEvent.CheatTag, GetScaleTag());
 	TestTrue(TEXT("Focused Scale prototype invokes Restore"), DeveloperComponent->RestoreFocusedScaleModification());
 	TestEqual(TEXT("Developer Scale Restore returns the focused Actor to baseline"), EditableActorA->GetActorScale3D(), FVector::OneVector);
+	FGameplayTagContainer AllPrototypeCheats = EditableActorA->EditableComponent->GetSupportedCheats();
+	AllPrototypeCheats.AddTag(GetGravityTag());
+	EditableActorA->EditableComponent->SetSupportedCheats(AllPrototypeCheats);
+	EditableActorA->PrimitiveA->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
+	EditableActorA->PrimitiveA->SetSimulatePhysics(true);
+	EditableActorA->PrimitiveA->SetEnableGravity(true);
+	TestTrue(TEXT("Focused Gravity Cycle invokes Low"), DeveloperComponent->CycleFocusedGravityModification());
+	TestEqual(TEXT("First Gravity cycle step is Low"), EditableActorA->EditableComponent->GetCurrentGravityPreset(), ERealityGravityPreset::Low);
+	TestTrue(TEXT("Developer Low Gravity enables its local Tick"), EditableActorA->EditableComponent->IsComponentTickEnabled());
+	TestEqual(TEXT("Developer Gravity Apply uses the player-side owner as instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
+	TestEqual(TEXT("Developer Gravity Apply uses Cheat.Gravity"), EditableActorA->LastCheatEvent.CheatTag, GetGravityTag());
+	TestTrue(TEXT("Second Gravity cycle step invokes Zero"), DeveloperComponent->CycleFocusedGravityModification());
+	TestEqual(TEXT("Second Gravity cycle step is Zero"), EditableActorA->EditableComponent->GetCurrentGravityPreset(), ERealityGravityPreset::Zero);
+	TestFalse(TEXT("Developer Zero Gravity disables the Low Tick"), EditableActorA->EditableComponent->IsComponentTickEnabled());
+	TestTrue(TEXT("Third Gravity cycle step invokes active Normal"), DeveloperComponent->CycleFocusedGravityModification());
+	TestEqual(TEXT("Third Gravity cycle step is Normal"), EditableActorA->EditableComponent->GetCurrentGravityPreset(), ERealityGravityPreset::Normal);
+	TestTrue(TEXT("Focused Gravity prototype invokes Restore"), DeveloperComponent->RestoreFocusedGravityModification());
+	TestFalse(TEXT("Developer Gravity Restore ends the cycle"), EditableActorA->EditableComponent->IsGravityModified());
+	EditableActorA->PrimitiveA->SetSimulatePhysics(false);
 
 	// Multiple simultaneously modified targets must remain independently reacquirable and restorable.
 	ARealityEditableTestActor* EditableActorMultiB = SpawnEditable(TestWorld, FVector(150.0f, 250.0f, 0.0f));
@@ -301,6 +363,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Unsupported focused Collision fails safely"), DeveloperComponent->ToggleFocusedCollisionModification());
 	TestFalse(TEXT("Unsupported focused Scale fails safely"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
 	TestFalse(TEXT("Unsupported focused Scale Restore fails safely"), DeveloperComponent->RestoreFocusedScaleModification());
+	TestFalse(TEXT("Unsupported focused Gravity Cycle fails safely"), DeveloperComponent->CycleFocusedGravityModification());
+	TestFalse(TEXT("Unsupported focused Gravity Restore fails safely"), DeveloperComponent->RestoreFocusedGravityModification());
 
 	TestFalse(TEXT("Second mode toggle deactivates Developer Mode"), DeveloperComponent->ToggleDeveloperMode());
 	TestFalse(TEXT("Developer scanning Tick disables again"), DeveloperComponent->IsComponentTickEnabled());
@@ -308,6 +372,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Collision invocation remains disabled after mode exit"), DeveloperComponent->ToggleFocusedCollisionModification());
 	TestFalse(TEXT("Scale invocation remains disabled after mode exit"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
 	TestFalse(TEXT("Scale Restore remains disabled after mode exit"), DeveloperComponent->RestoreFocusedScaleModification());
+	TestFalse(TEXT("Gravity Cycle remains disabled after mode exit"), DeveloperComponent->CycleFocusedGravityModification());
+	TestFalse(TEXT("Gravity Restore remains disabled after mode exit"), DeveloperComponent->RestoreFocusedGravityModification());
 
 	TestWorld->DestroyWorld(false);
 	TestWorld->SetPhysicsScene(nullptr);

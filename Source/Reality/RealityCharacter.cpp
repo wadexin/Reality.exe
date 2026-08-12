@@ -60,6 +60,8 @@ ARealityCharacter::ARealityCharacter()
 	DeveloperScaleActions.Add(CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale Double Action")));
 	DeveloperScaleActions.Add(CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale Quadruple Action")));
 	DeveloperScaleRestoreAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale Restore Action"));
+	DeveloperGravityCycleAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Gravity Cycle Action"));
+	DeveloperGravityRestoreAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Gravity Restore Action"));
 	DeveloperMappingContext = CreateDefaultSubobject<UInputMappingContext>(TEXT("Developer Mapping Context"));
 	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperModeAction))
 	{
@@ -80,6 +82,14 @@ ARealityCharacter::ARealityCharacter()
 	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperScaleRestoreAction))
 	{
 		DeveloperMappingContext->MapKey(DeveloperScaleRestoreAction, EKeys::T);
+	}
+	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperGravityCycleAction))
+	{
+		DeveloperMappingContext->MapKey(DeveloperGravityCycleAction, EKeys::G);
+	}
+	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperGravityRestoreAction))
+	{
+		DeveloperMappingContext->MapKey(DeveloperGravityRestoreAction, EKeys::H);
 	}
 
 	// configure the character comps
@@ -149,7 +159,12 @@ void ARealityCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		}
 
 		// Minimal Developer Mode prototype controls.
-		if (DeveloperModeAction && DeveloperCollisionAction && DeveloperScaleActions.Num() == 5 && DeveloperScaleRestoreAction)
+		if (DeveloperModeAction
+			&& DeveloperCollisionAction
+			&& DeveloperScaleActions.Num() == 5
+			&& DeveloperScaleRestoreAction
+			&& DeveloperGravityCycleAction
+			&& DeveloperGravityRestoreAction)
 		{
 			EnhancedInputComponent->BindAction(DeveloperModeAction, ETriggerEvent::Started, this, &ARealityCharacter::DoToggleDeveloperMode);
 			EnhancedInputComponent->BindAction(DeveloperCollisionAction, ETriggerEvent::Started, this, &ARealityCharacter::DoToggleDeveloperCollision);
@@ -159,6 +174,8 @@ void ARealityCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 			EnhancedInputComponent->BindAction(DeveloperScaleActions[3], ETriggerEvent::Started, this, &ARealityCharacter::DoApplyDeveloperScaleDouble);
 			EnhancedInputComponent->BindAction(DeveloperScaleActions[4], ETriggerEvent::Started, this, &ARealityCharacter::DoApplyDeveloperScaleQuadruple);
 			EnhancedInputComponent->BindAction(DeveloperScaleRestoreAction, ETriggerEvent::Started, this, &ARealityCharacter::DoRestoreDeveloperScale);
+			EnhancedInputComponent->BindAction(DeveloperGravityCycleAction, ETriggerEvent::Started, this, &ARealityCharacter::DoCycleDeveloperGravity);
+			EnhancedInputComponent->BindAction(DeveloperGravityRestoreAction, ETriggerEvent::Started, this, &ARealityCharacter::DoRestoreDeveloperGravity);
 		}
 		else
 		{
@@ -293,5 +310,21 @@ void ARealityCharacter::DoRestoreDeveloperScale()
 	if (DeveloperModeComponent)
 	{
 		DeveloperModeComponent->RestoreFocusedScaleModification();
+	}
+}
+
+void ARealityCharacter::DoCycleDeveloperGravity()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->CycleFocusedGravityModification();
+	}
+}
+
+void ARealityCharacter::DoRestoreDeveloperGravity()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->RestoreFocusedGravityModification();
 	}
 }

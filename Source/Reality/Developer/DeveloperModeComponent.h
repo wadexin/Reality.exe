@@ -82,6 +82,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Scale")
 	bool RestoreFocusedScaleModification();
 
+	/** Cycles the focused target through Normal, Low, and Zero gravity. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Gravity")
+	bool CycleFocusedGravityModification();
+
+	/** Restores the focused target's exact captured gravity behavior. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Gravity")
+	bool RestoreFocusedGravityModification();
+
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;

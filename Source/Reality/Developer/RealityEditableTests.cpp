@@ -27,7 +27,8 @@ bool FRealityEditableComponentTest::RunTest(const FString& Parameters)
 	URealityEditableComponent* EditableComponent = NewObject<URealityEditableComponent>(EditableActor, TEXT("RealityEditableComponent"));
 	EditableActor->AddInstanceComponent(EditableComponent);
 	TestNotNull(TEXT("An editable component can exist on an actor"), EditableActor->FindComponentByClass<URealityEditableComponent>());
-	TestFalse(TEXT("The editable data contract adds no Tick behavior"), EditableComponent->PrimaryComponentTick.bCanEverTick);
+	TestTrue(TEXT("The editable component supports a local Low Gravity Tick"), EditableComponent->PrimaryComponentTick.bCanEverTick);
+	TestFalse(TEXT("The Low Gravity Tick is disabled by default"), EditableComponent->IsComponentTickEnabled());
 
 	TestFalse(TEXT("An empty capability container supports no valid cheat"), EditableComponent->SupportsCheat(CollisionTag));
 	TestFalse(TEXT("An empty object container has no valid object tag"), EditableComponent->HasObjectTag(DoorTag));

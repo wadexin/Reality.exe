@@ -171,6 +171,72 @@ bool UDeveloperModeComponent::RestoreFocusedScaleModification()
 	return bSucceeded;
 }
 
+bool UDeveloperModeComponent::CycleFocusedGravityModification()
+{
+	if (!bDeveloperModeActive)
+	{
+		return false;
+	}
+
+	URealityEditableComponent* EditableComponent = FocusedEditableComponent.Get();
+	AActor* InstigatingActor = GetOwner();
+	const FGameplayTag GravityTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"));
+	if (!IsValid(EditableComponent)
+		|| !IsValid(InstigatingActor)
+		|| !EditableComponent->SupportsCheat(GravityTag))
+	{
+		return false;
+	}
+
+	ERealityGravityPreset NextPreset = ERealityGravityPreset::Low;
+	if (EditableComponent->IsGravityModified())
+	{
+		switch (EditableComponent->GetCurrentGravityPreset())
+		{
+		case ERealityGravityPreset::Normal:
+			NextPreset = ERealityGravityPreset::Low;
+			break;
+		case ERealityGravityPreset::Low:
+			NextPreset = ERealityGravityPreset::Zero;
+			break;
+		case ERealityGravityPreset::Zero:
+			NextPreset = ERealityGravityPreset::Normal;
+			break;
+		default:
+			return false;
+		}
+	}
+
+	const bool bSucceeded = EditableComponent->ApplyGravityModification(NextPreset, InstigatingActor);
+	if (bSucceeded)
+	{
+		RefreshDebugReadout();
+	}
+	return bSucceeded;
+}
+
+bool UDeveloperModeComponent::RestoreFocusedGravityModification()
+{
+	if (!bDeveloperModeActive)
+	{
+		return false;
+	}
+
+	URealityEditableComponent* EditableComponent = FocusedEditableComponent.Get();
+	AActor* InstigatingActor = GetOwner();
+	if (!IsValid(EditableComponent) || !IsValid(InstigatingActor))
+	{
+		return false;
+	}
+
+	const bool bSucceeded = EditableComponent->RestoreGravityModification(InstigatingActor);
+	if (bSucceeded)
+	{
+		RefreshDebugReadout();
+	}
+	return bSucceeded;
+}
+
 void UDeveloperModeComponent::SetFocusedEditableComponent(URealityEditableComponent* NewEditableComponent)
 {
 	AActor* NewActor = IsValid(NewEditableComponent) ? NewEditableComponent->GetOwner() : nullptr;
@@ -324,6 +390,21 @@ void UDeveloperModeComponent::RefreshDebugReadout() const
 				CurrentScale.X,
 				CurrentScale.Y,
 				CurrentScale.Z);
+		}
+
+		const FGameplayTag GravityTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"));
+		if (EditableComponent->SupportsCheat(GravityTag))
+		{
+			const UEnum* PresetEnum = StaticEnum<ERealityGravityPreset>();
+			const FString PresetLabel = PresetEnum
+				? PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(EditableComponent->GetCurrentGravityPreset())).ToString()
+				: TEXT("Unknown");
+			Readout += FString::Printf(
+				TEXT("\nGravity Modified: %s\nGravity Preset: %s\nEligible Physics Components: %d\nLow Gravity Force Active: %s\nGravity: G=Cycle  H=Restore"),
+				EditableComponent->IsGravityModified() ? TEXT("True") : TEXT("False"),
+				*PresetLabel,
+				EditableComponent->GetEligibleGravityComponentCount(),
+				EditableComponent->IsComponentTickEnabled() ? TEXT("True") : TEXT("False"));
 		}
 	}
 
