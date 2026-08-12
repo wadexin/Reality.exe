@@ -4,12 +4,38 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/EngineTypes.h"
 #include "GameplayTagContainer.h"
+#include "RealitySystem/RealityCheatEvent.h"
 #include "RealityEditableComponent.generated.h"
+
+class UPrimitiveComponent;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRealityCheatEventSignature, const FRealityCheatEvent&, CheatEvent);
+
+/** Exact collision state captured for one owner-local primitive during an active modification cycle. */
+USTRUCT()
+struct FRealityOriginalCollisionState
+{
+	GENERATED_BODY()
+
+	FRealityOriginalCollisionState() = default;
+
+	FRealityOriginalCollisionState(UPrimitiveComponent* InPrimitiveComponent, const ECollisionEnabled::Type InCollisionEnabled)
+		: PrimitiveComponent(InPrimitiveComponent)
+		, CollisionEnabled(InCollisionEnabled)
+	{
+	}
+
+	UPROPERTY()
+	TWeakObjectPtr<UPrimitiveComponent> PrimitiveComponent;
+
+	ECollisionEnabled::Type CollisionEnabled = ECollisionEnabled::NoCollision;
+};
 
 /**
  * Marks its owning actor as Reality-editable and declares its supported cheat capabilities and object tags.
- * This component owns classification data only; typed Apply and Restore behavior is added by later tasks.
+ * Typed property implementations live here incrementally while keeping their state and operations independent.
  */
 UCLASS(ClassGroup = (Reality), BlueprintType, Blueprintable, meta = (BlueprintSpawnableComponent))
 class REALITY_API URealityEditableComponent : public UActorComponent
@@ -18,6 +44,10 @@ class REALITY_API URealityEditableComponent : public UActorComponent
 
 public:
 	URealityEditableComponent();
+
+	/** Broadcast after a successful Reality property Apply or Restore operation. */
+	UPROPERTY(BlueprintAssignable, Category = "Reality|Editable|Events")
+	FRealityCheatEventSignature OnRealityCheatEvent;
 
 	/** Returns true when CheatTag is valid and configured as an exact supported capability. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable")
@@ -34,6 +64,18 @@ public:
 	/** Returns a copy of the configured semantic object tags for safe C++ and Blueprint inspection. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable")
 	FGameplayTagContainer GetObjectTags() const;
+
+	/** Disables collision on valid PrimitiveComponents owned directly by this Actor. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Collision")
+	bool ApplyCollisionModification(AActor* InstigatingActor);
+
+	/** Restores each surviving PrimitiveComponent to the exact state captured by the active collision cycle. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Collision")
+	bool RestoreCollisionModification(AActor* InstigatingActor);
+
+	/** Returns whether this component currently owns an active collision modification cycle. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Collision")
+	bool IsCollisionModified() const { return bCollisionModified; }
 
 	/** Returns a concise description of the owner and its configured tags for development inspection. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Debug")
@@ -57,4 +99,11 @@ private:
 	/** Semantic object classifications used by future Reality rules. */
 	UPROPERTY(EditAnywhere, Category = "Reality|Editable", meta = (Categories = "Object"))
 	FGameplayTagContainer ObjectTags;
+
+	/** Per-component states captured before the active collision modification. Never exposed for mutation. */
+	UPROPERTY(Transient)
+	TArray<FRealityOriginalCollisionState> OriginalCollisionStates;
+
+	UPROPERTY(Transient)
+	bool bCollisionModified = false;
 };
