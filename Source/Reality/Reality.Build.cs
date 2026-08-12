@@ -14,6 +14,7 @@ public class Reality : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
+			"DeveloperSettings",
 			"GameplayTags",
 			"AIModule",
 			"StateTreeModule",

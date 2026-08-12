@@ -8,6 +8,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Reality.h"
+#include "RealitySystem/RealityManagerSubsystem.h"
 
 namespace DeveloperModeDebug
 {
@@ -20,8 +21,29 @@ UDeveloperModeComponent::UDeveloperModeComponent()
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 }
 
+void UDeveloperModeComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	if (UWorld* World = GetWorld())
+	{
+		if (URealityManagerSubsystem* RealityManager = World->GetSubsystem<URealityManagerSubsystem>())
+		{
+			RealityManager->OnRealitySuspicionChanged.AddUniqueDynamic(this, &UDeveloperModeComponent::HandleRealitySuspicionChanged);
+			RealityManager->OnRealityStateChanged.AddUniqueDynamic(this, &UDeveloperModeComponent::HandleRealityStateChanged);
+		}
+	}
+}
+
 void UDeveloperModeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (UWorld* World = GetWorld())
+	{
+		if (URealityManagerSubsystem* RealityManager = World->GetSubsystem<URealityManagerSubsystem>())
+		{
+			RealityManager->OnRealitySuspicionChanged.RemoveDynamic(this, &UDeveloperModeComponent::HandleRealitySuspicionChanged);
+			RealityManager->OnRealityStateChanged.RemoveDynamic(this, &UDeveloperModeComponent::HandleRealityStateChanged);
+		}
+	}
 	ExitDeveloperMode();
 	Super::EndPlay(EndPlayReason);
 }
@@ -408,6 +430,26 @@ void UDeveloperModeComponent::RefreshDebugReadout() const
 		}
 	}
 
+	if (const UWorld* World = GetWorld())
+	{
+		if (const URealityManagerSubsystem* RealityManager = World->GetSubsystem<URealityManagerSubsystem>())
+		{
+			const UEnum* StateEnum = StaticEnum<ERealityState>();
+			const FString StateLabel = StateEnum
+				? StateEnum->GetDisplayNameTextByValue(static_cast<int64>(RealityManager->GetRealityState())).ToString()
+				: TEXT("Unknown");
+			Readout += FString::Printf(TEXT("\n\nREALITY\nSuspicion: %.0f / 100\nState: %s"), RealityManager->GetSuspicion(), *StateLabel);
+			if (const FRealityProcessedCheatRecord* LastEvent = RealityManager->GetMostRecentEvent())
+			{
+				Readout += FString::Printf(
+					TEXT("\nLast Event: %s %s %+.0f"),
+					*LastEvent->CheatTag.ToString(),
+					LastEvent->Operation == ERealityCheatOperation::Apply ? TEXT("Apply") : TEXT("Restore"),
+					LastEvent->SuspicionDelta);
+			}
+		}
+	}
+
 	GEngine->AddOnScreenDebugMessage(DeveloperModeDebug::ReadoutKey, 86400.0f, FColor::Cyan, Readout, true);
 #endif
 }
@@ -428,4 +470,14 @@ void UDeveloperModeComponent::HandleFocusedActorDestroyed(AActor* DestroyedActor
 	{
 		SetFocusedEditableComponent(nullptr);
 	}
+}
+
+void UDeveloperModeComponent::HandleRealitySuspicionChanged(const float OldValue, const float NewValue)
+{
+	RefreshDebugReadout();
+}
+
+void UDeveloperModeComponent::HandleRealityStateChanged(const ERealityState OldState, const ERealityState NewState)
+{
+	RefreshDebugReadout();
 }

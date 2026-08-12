@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Developer/RealityEditableComponent.h"
+#include "RealitySystem/RealityManagerSubsystem.h"
 #include "DeveloperModeComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperFocusGainedSignature, AActor*, FocusedActor);
@@ -91,6 +92,7 @@ public:
 	bool RestoreFocusedGravityModification();
 
 protected:
+	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -113,6 +115,13 @@ private:
 	/** Clears focus when the focused Actor is destroyed. */
 	UFUNCTION()
 	void HandleFocusedActorDestroyed(AActor* DestroyedActor);
+
+	/** Refreshes the active overlay when global Reality values change from any event source. */
+	UFUNCTION()
+	void HandleRealitySuspicionChanged(float OldValue, float NewValue);
+
+	UFUNCTION()
+	void HandleRealityStateChanged(ERealityState OldState, ERealityState NewState);
 
 	UPROPERTY(Transient)
 	bool bDeveloperModeActive = false;

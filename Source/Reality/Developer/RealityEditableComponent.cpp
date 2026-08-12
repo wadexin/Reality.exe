@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "NativeGameplayTags.h"
 #include "Reality.h"
+#include "RealitySystem/RealityManagerSubsystem.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Collision, "Cheat.Collision");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Scale, "Cheat.Scale");
@@ -194,7 +195,7 @@ bool URealityEditableComponent::ApplyCollisionModification(AActor* InstigatingAc
 
 	bCollisionModified = true;
 	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Collision, InstigatingActor, ERealityCheatOperation::Apply);
-	OnRealityCheatEvent.Broadcast(CheatEvent);
+	EmitRealityCheatEvent(CheatEvent);
 	UE_LOG(LogReality, Log, TEXT("Reality Collision: Disabled collision for '%s' on %d PrimitiveComponent(s)."), *GetNameSafe(Owner), OriginalCollisionStates.Num());
 	return true;
 }
@@ -234,7 +235,7 @@ bool URealityEditableComponent::RestoreCollisionModification(AActor* Instigating
 	}
 
 	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Collision, InstigatingActor, ERealityCheatOperation::Restore);
-	OnRealityCheatEvent.Broadcast(CheatEvent);
+	EmitRealityCheatEvent(CheatEvent);
 	UE_LOG(LogReality, Log, TEXT("Reality Collision: Restored collision for '%s' on %d PrimitiveComponent(s)."), *GetNameSafe(Owner), RestoredComponentCount);
 	return true;
 }
@@ -291,7 +292,7 @@ bool URealityEditableComponent::ApplyScaleModification(const ERealityScalePreset
 	Owner->SetActorScale3D(NewScale);
 	CurrentScalePreset = Preset;
 	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Scale, InstigatingActor, ERealityCheatOperation::Apply);
-	OnRealityCheatEvent.Broadcast(CheatEvent);
+	EmitRealityCheatEvent(CheatEvent);
 	UE_LOG(
 		LogReality,
 		Log,
@@ -331,7 +332,7 @@ bool URealityEditableComponent::RestoreScaleModification(AActor* InstigatingActo
 	OriginalScale = RestoredScale;
 
 	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Scale, InstigatingActor, ERealityCheatOperation::Restore);
-	OnRealityCheatEvent.Broadcast(CheatEvent);
+	EmitRealityCheatEvent(CheatEvent);
 	UE_LOG(LogReality, Log, TEXT("Reality Scale: Restored '%s' to exact scale %s."), *GetNameSafe(Owner), *RestoredScale.ToString());
 	return true;
 }
@@ -446,7 +447,7 @@ bool URealityEditableComponent::ApplyGravityModification(const ERealityGravityPr
 	CurrentGravityPreset = Preset;
 	SetComponentTickEnabled(Preset == ERealityGravityPreset::Low);
 	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Gravity, InstigatingActor, ERealityCheatOperation::Apply);
-	OnRealityCheatEvent.Broadcast(CheatEvent);
+	EmitRealityCheatEvent(CheatEvent);
 	UE_LOG(LogReality, Log, TEXT("Reality Gravity: Set '%s' to %s on %d PrimitiveComponent(s). LowForceActive=%s."), *GetNameSafe(Owner), RealityGravity::GetPresetLabel(Preset), AppliedComponentCount, Preset == ERealityGravityPreset::Low ? TEXT("true") : TEXT("false"));
 	return true;
 }
@@ -488,7 +489,7 @@ bool URealityEditableComponent::RestoreGravityModification(AActor* InstigatingAc
 	}
 
 	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Gravity, InstigatingActor, ERealityCheatOperation::Restore);
-	OnRealityCheatEvent.Broadcast(CheatEvent);
+	EmitRealityCheatEvent(CheatEvent);
 	UE_LOG(LogReality, Log, TEXT("Reality Gravity: Restored exact gravity state for '%s' on %d PrimitiveComponent(s)."), *GetNameSafe(Owner), RestoredComponentCount);
 	return true;
 }
@@ -514,6 +515,26 @@ int32 URealityEditableComponent::GetEligibleGravityComponentCount() const
 		}
 	}
 	return EligibleComponentCount;
+}
+
+void URealityEditableComponent::EmitRealityCheatEvent(const FRealityCheatEvent& CheatEvent)
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (URealityManagerSubsystem* RealityManager = World->GetSubsystem<URealityManagerSubsystem>())
+		{
+			RealityManager->ProcessCheatEvent(CheatEvent);
+		}
+		else
+		{
+			UE_LOG(LogReality, Error, TEXT("Reality Editable: Successful event for '%s' could not reach a Reality Manager in world '%s'."), *GetNameSafe(GetOwner()), *GetNameSafe(World));
+		}
+	}
+	else
+	{
+		UE_LOG(LogReality, Error, TEXT("Reality Editable: Successful event for '%s' has no valid world for Reality Manager routing."), *GetNameSafe(GetOwner()));
+	}
+	OnRealityCheatEvent.Broadcast(CheatEvent);
 }
 
 FString URealityEditableComponent::GetEditableDebugDescription() const

@@ -39,3 +39,17 @@ void ARealityEditableTestActor::HandleDeveloperFocusLost(AActor* LostActor)
 		++DeveloperFocusLostCount;
 	}
 }
+
+void ARealityEditableTestActor::HandleSuspicionChanged(const float OldValue, const float NewValue)
+{
+	++SuspicionChangedCount;
+	LastOldSuspicion = OldValue;
+	LastNewSuspicion = NewValue;
+}
+
+void ARealityEditableTestActor::HandleRealityStateChanged(const ERealityState OldState, const ERealityState NewState)
+{
+	++RealityStateChangedCount;
+	LastOldRealityState = OldState;
+	LastNewRealityState = NewState;
+}

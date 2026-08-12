@@ -175,6 +175,9 @@ protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
+	/** Broadcasts one successful property event and submits that same event to the world Reality Manager. */
+	void EmitRealityCheatEvent(const FRealityCheatEvent& CheatEvent);
+
 	/** Cheat properties this actor supports. Configure these on the component's Blueprint or instance defaults. */
 	UPROPERTY(EditAnywhere, Category = "Reality|Editable", meta = (Categories = "Cheat"))
 	FGameplayTagContainer SupportedCheats;
