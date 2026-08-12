@@ -13,6 +13,7 @@ class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
 class UInteractionComponent;
+class UDeveloperModeComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -36,6 +37,10 @@ class ARealityCharacter : public ACharacter
 	/** Reusable viewpoint-based interaction component. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UInteractionComponent* InteractionComponent;
+
+	/** Player-side Developer Mode state, focus, and prototype cheat shell. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UDeveloperModeComponent* DeveloperModeComponent;
 
 protected:
 
@@ -62,6 +67,18 @@ protected:
 	/** Input Mapping Context containing the default interaction key mapping. */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputMappingContext* InteractionMappingContext;
+
+	/** Toggles the minimal Developer Mode shell. */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* DeveloperModeAction;
+
+	/** Invokes the temporary focused Collision Apply/Restore control. */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* DeveloperCollisionAction;
+
+	/** Input Mapping Context containing F1 Developer Mode and R Collision prototype bindings. */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputMappingContext* DeveloperMappingContext;
 	
 public:
 	/** Adds the interaction mapping context for the locally controlled player. */
@@ -97,6 +114,14 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoInteract();
 
+	/** Toggles the player-owned Developer Mode component. */
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	virtual void DoToggleDeveloperMode();
+
+	/** Invokes the focused Developer Mode Collision prototype action. */
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	virtual void DoToggleDeveloperCollision();
+
 protected:
 
 	/** Set up input action bindings */
@@ -119,6 +144,18 @@ public:
 
 	/** Returns the Enhanced Input mapping context containing the default interaction binding. */
 	UInputMappingContext* GetInteractionMappingContext() const { return InteractionMappingContext; }
+
+	/** Returns the player-owned Developer Mode component. */
+	UDeveloperModeComponent* GetDeveloperModeComponent() const { return DeveloperModeComponent; }
+
+	/** Returns the Enhanced Input action used to toggle Developer Mode. */
+	UInputAction* GetDeveloperModeAction() const { return DeveloperModeAction; }
+
+	/** Returns the Enhanced Input action used for the temporary Collision control. */
+	UInputAction* GetDeveloperCollisionAction() const { return DeveloperCollisionAction; }
+
+	/** Returns the mapping context containing Developer Mode prototype controls. */
+	UInputMappingContext* GetDeveloperMappingContext() const { return DeveloperMappingContext; }
 
 };
 

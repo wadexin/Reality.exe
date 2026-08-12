@@ -5,6 +5,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Developer/DeveloperModeComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -48,6 +49,20 @@ ARealityCharacter::ARealityCharacter()
 		InteractionMappingContext->MapKey(InteractionAction, EKeys::E);
 	}
 
+	// Create the minimal Developer Mode shell and its isolated prototype controls.
+	DeveloperModeComponent = CreateDefaultSubobject<UDeveloperModeComponent>(TEXT("Developer Mode Component"));
+	DeveloperModeAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Mode Action"));
+	DeveloperCollisionAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Collision Action"));
+	DeveloperMappingContext = CreateDefaultSubobject<UInputMappingContext>(TEXT("Developer Mapping Context"));
+	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperModeAction))
+	{
+		DeveloperMappingContext->MapKey(DeveloperModeAction, EKeys::F1);
+	}
+	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperCollisionAction))
+	{
+		DeveloperMappingContext->MapKey(DeveloperCollisionAction, EKeys::R);
+	}
+
 	// configure the character comps
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
@@ -63,9 +78,9 @@ void ARealityCharacter::PawnClientRestart()
 {
 	Super::PawnClientRestart();
 
-	if (!InteractionMappingContext)
+	if (!InteractionMappingContext || !DeveloperMappingContext)
 	{
-		UE_LOG(LogReality, Error, TEXT("'%s' has no Interaction Mapping Context configured."), *GetNameSafe(this));
+		UE_LOG(LogReality, Error, TEXT("'%s' is missing an Interaction or Developer Mapping Context."), *GetNameSafe(this));
 		return;
 	}
 
@@ -78,6 +93,10 @@ void ARealityCharacter::PawnClientRestart()
 				if (!Subsystem->HasMappingContext(InteractionMappingContext))
 				{
 					Subsystem->AddMappingContext(InteractionMappingContext, 0);
+				}
+				if (!Subsystem->HasMappingContext(DeveloperMappingContext))
+				{
+					Subsystem->AddMappingContext(DeveloperMappingContext, 0);
 				}
 			}
 		}
@@ -108,6 +127,17 @@ void ARealityCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		else
 		{
 			UE_LOG(LogReality, Warning, TEXT("'%s' has no Interaction Input Action configured."), *GetNameSafe(this));
+		}
+
+		// Minimal Developer Mode prototype controls.
+		if (DeveloperModeAction && DeveloperCollisionAction)
+		{
+			EnhancedInputComponent->BindAction(DeveloperModeAction, ETriggerEvent::Started, this, &ARealityCharacter::DoToggleDeveloperMode);
+			EnhancedInputComponent->BindAction(DeveloperCollisionAction, ETriggerEvent::Started, this, &ARealityCharacter::DoToggleDeveloperCollision);
+		}
+		else
+		{
+			UE_LOG(LogReality, Warning, TEXT("'%s' is missing a Developer Mode prototype Input Action."), *GetNameSafe(this));
 		}
 	}
 	else
@@ -174,5 +204,21 @@ void ARealityCharacter::DoInteract()
 	if (InteractionComponent)
 	{
 		InteractionComponent->InteractWithFocusedActor();
+	}
+}
+
+void ARealityCharacter::DoToggleDeveloperMode()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->ToggleDeveloperMode();
+	}
+}
+
+void ARealityCharacter::DoToggleDeveloperCollision()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->ToggleFocusedCollisionModification();
 	}
 }

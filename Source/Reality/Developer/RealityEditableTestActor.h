@@ -34,7 +34,19 @@ public:
 	UPROPERTY(Transient)
 	FRealityCheatEvent LastCheatEvent;
 
+	UPROPERTY(Transient)
+	int32 DeveloperFocusGainedCount = 0;
+
+	UPROPERTY(Transient)
+	int32 DeveloperFocusLostCount = 0;
+
 	/** Records emitted events for focused automation validation. */
 	UFUNCTION()
 	void HandleRealityCheatEvent(const FRealityCheatEvent& CheatEvent);
+
+	UFUNCTION()
+	void HandleDeveloperFocusGained(AActor* FocusedActor);
+
+	UFUNCTION()
+	void HandleDeveloperFocusLost(AActor* LostActor);
 };

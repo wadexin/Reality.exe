@@ -23,3 +23,19 @@ void ARealityEditableTestActor::HandleRealityCheatEvent(const FRealityCheatEvent
 	++CheatEventCount;
 	LastCheatEvent = CheatEvent;
 }
+
+void ARealityEditableTestActor::HandleDeveloperFocusGained(AActor* FocusedActor)
+{
+	if (FocusedActor == this)
+	{
+		++DeveloperFocusGainedCount;
+	}
+}
+
+void ARealityEditableTestActor::HandleDeveloperFocusLost(AActor* LostActor)
+{
+	if (LostActor == this)
+	{
+		++DeveloperFocusLostCount;
+	}
+}
