@@ -124,6 +124,53 @@ bool UDeveloperModeComponent::ToggleFocusedCollisionModification()
 	return bSucceeded;
 }
 
+bool UDeveloperModeComponent::ApplyFocusedScaleModification(const ERealityScalePreset Preset)
+{
+	if (!bDeveloperModeActive)
+	{
+		return false;
+	}
+
+	URealityEditableComponent* EditableComponent = FocusedEditableComponent.Get();
+	AActor* InstigatingActor = GetOwner();
+	const FGameplayTag ScaleTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"));
+	if (!IsValid(EditableComponent)
+		|| !IsValid(InstigatingActor)
+		|| !EditableComponent->SupportsCheat(ScaleTag))
+	{
+		return false;
+	}
+
+	const bool bSucceeded = EditableComponent->ApplyScaleModification(Preset, InstigatingActor);
+	if (bSucceeded)
+	{
+		RefreshDebugReadout();
+	}
+	return bSucceeded;
+}
+
+bool UDeveloperModeComponent::RestoreFocusedScaleModification()
+{
+	if (!bDeveloperModeActive)
+	{
+		return false;
+	}
+
+	URealityEditableComponent* EditableComponent = FocusedEditableComponent.Get();
+	AActor* InstigatingActor = GetOwner();
+	if (!IsValid(EditableComponent) || !IsValid(InstigatingActor))
+	{
+		return false;
+	}
+
+	const bool bSucceeded = EditableComponent->RestoreScaleModification(InstigatingActor);
+	if (bSucceeded)
+	{
+		RefreshDebugReadout();
+	}
+	return bSucceeded;
+}
+
 void UDeveloperModeComponent::SetFocusedEditableComponent(URealityEditableComponent* NewEditableComponent)
 {
 	AActor* NewActor = IsValid(NewEditableComponent) ? NewEditableComponent->GetOwner() : nullptr;
@@ -257,6 +304,27 @@ void UDeveloperModeComponent::RefreshDebugReadout() const
 			*EditableComponent->GetObjectTags().ToStringSimple(),
 			*EditableComponent->GetSupportedCheats().ToStringSimple(),
 			EditableComponent->IsCollisionModified() ? TEXT("True") : TEXT("False"));
+
+		const FGameplayTag ScaleTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"));
+		if (EditableComponent->SupportsCheat(ScaleTag))
+		{
+			const UEnum* PresetEnum = StaticEnum<ERealityScalePreset>();
+			const FString PresetLabel = PresetEnum
+				? PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(EditableComponent->GetCurrentScalePreset())).ToString()
+				: TEXT("Unknown");
+			const FVector OriginalScale = EditableComponent->GetOriginalScale();
+			const FVector CurrentScale = EditableComponent->GetOwner()->GetActorScale3D();
+			Readout += FString::Printf(
+				TEXT("\nScale Modified: %s\nCurrent Scale Preset: %s\nOriginal Scale: %.3f / %.3f / %.3f\nCurrent Actor Scale: %.3f / %.3f / %.3f\nScale: 1=0.25x  2=0.5x  3=1.0x  4=2.0x  5=4.0x\nRestore Scale: T"),
+				EditableComponent->IsScaleModified() ? TEXT("True") : TEXT("False"),
+				*PresetLabel,
+				OriginalScale.X,
+				OriginalScale.Y,
+				OriginalScale.Z,
+				CurrentScale.X,
+				CurrentScale.Y,
+				CurrentScale.Z);
+		}
 	}
 
 	GEngine->AddOnScreenDebugMessage(DeveloperModeDebug::ReadoutKey, 86400.0f, FColor::Cyan, Readout, true);

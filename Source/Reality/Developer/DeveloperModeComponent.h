@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Developer/RealityEditableComponent.h"
 #include "DeveloperModeComponent.generated.h"
-
-class URealityEditableComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperFocusGainedSignature, AActor*, FocusedActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperFocusLostSignature, AActor*, LostActor);
@@ -74,6 +73,14 @@ public:
 	/** Applies or restores Cheat.Collision on the focused target using this component's owner as instigator. */
 	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Collision")
 	bool ToggleFocusedCollisionModification();
+
+	/** Applies a controlled Scale preset to the focused target using this component's owner as instigator. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Scale")
+	bool ApplyFocusedScaleModification(ERealityScalePreset Preset);
+
+	/** Restores the focused target's active Scale cycle using this component's owner as instigator. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Scale")
+	bool RestoreFocusedScaleModification();
 
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

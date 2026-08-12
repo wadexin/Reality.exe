@@ -13,6 +13,17 @@ class UPrimitiveComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRealityCheatEventSignature, const FRealityCheatEvent&, CheatEvent);
 
+/** Controlled multipliers available to the prototype Scale Reality modification. */
+UENUM(BlueprintType)
+enum class ERealityScalePreset : uint8
+{
+	Quarter UMETA(DisplayName = "0.25x"),
+	Half UMETA(DisplayName = "0.5x"),
+	One UMETA(DisplayName = "1.0x"),
+	Double UMETA(DisplayName = "2.0x"),
+	Quadruple UMETA(DisplayName = "4.0x")
+};
+
 /** Exact collision state captured for one owner-local primitive during an active modification cycle. */
 USTRUCT()
 struct FRealityOriginalCollisionState
@@ -77,6 +88,26 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Collision")
 	bool IsCollisionModified() const { return bCollisionModified; }
 
+	/** Applies a controlled multiplier to the exact Actor scale captured at the start of this Scale cycle. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Scale")
+	bool ApplyScaleModification(ERealityScalePreset Preset, AActor* InstigatingActor);
+
+	/** Restores the exact Actor scale captured before the active Scale cycle. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Scale")
+	bool RestoreScaleModification(AActor* InstigatingActor);
+
+	/** Returns whether an explicit Scale modification cycle is active, including an active 1.0x preset. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Scale")
+	bool IsScaleModified() const { return bScaleModified; }
+
+	/** Returns the active Scale preset. The value is 1.0x when no Scale cycle is active. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Scale")
+	ERealityScalePreset GetCurrentScalePreset() const { return CurrentScalePreset; }
+
+	/** Returns the captured baseline while Scale is active, otherwise the owner's current legitimate scale. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Scale")
+	FVector GetOriginalScale() const;
+
 	/** Returns a concise description of the owner and its configured tags for development inspection. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Debug")
 	FString GetEditableDebugDescription() const;
@@ -106,4 +137,14 @@ private:
 
 	UPROPERTY(Transient)
 	bool bCollisionModified = false;
+
+	/** Exact legitimate Actor scale captured once for the active Scale cycle. */
+	UPROPERTY(Transient)
+	FVector OriginalScale = FVector::OneVector;
+
+	UPROPERTY(Transient)
+	ERealityScalePreset CurrentScalePreset = ERealityScalePreset::One;
+
+	UPROPERTY(Transient)
+	bool bScaleModified = false;
 };

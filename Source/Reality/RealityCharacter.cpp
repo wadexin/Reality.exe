@@ -53,6 +53,13 @@ ARealityCharacter::ARealityCharacter()
 	DeveloperModeComponent = CreateDefaultSubobject<UDeveloperModeComponent>(TEXT("Developer Mode Component"));
 	DeveloperModeAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Mode Action"));
 	DeveloperCollisionAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Collision Action"));
+	DeveloperScaleActions.Reserve(5);
+	DeveloperScaleActions.Add(CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale Quarter Action")));
+	DeveloperScaleActions.Add(CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale Half Action")));
+	DeveloperScaleActions.Add(CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale One Action")));
+	DeveloperScaleActions.Add(CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale Double Action")));
+	DeveloperScaleActions.Add(CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale Quadruple Action")));
+	DeveloperScaleRestoreAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Scale Restore Action"));
 	DeveloperMappingContext = CreateDefaultSubobject<UInputMappingContext>(TEXT("Developer Mapping Context"));
 	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperModeAction))
 	{
@@ -61,6 +68,18 @@ ARealityCharacter::ARealityCharacter()
 	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperCollisionAction))
 	{
 		DeveloperMappingContext->MapKey(DeveloperCollisionAction, EKeys::R);
+	}
+	const FKey ScaleKeys[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five};
+	for (int32 ScaleActionIndex = 0; ScaleActionIndex < DeveloperScaleActions.Num(); ++ScaleActionIndex)
+	{
+		if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperScaleActions[ScaleActionIndex]))
+		{
+			DeveloperMappingContext->MapKey(DeveloperScaleActions[ScaleActionIndex], ScaleKeys[ScaleActionIndex]);
+		}
+	}
+	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperScaleRestoreAction))
+	{
+		DeveloperMappingContext->MapKey(DeveloperScaleRestoreAction, EKeys::T);
 	}
 
 	// configure the character comps
@@ -130,10 +149,16 @@ void ARealityCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		}
 
 		// Minimal Developer Mode prototype controls.
-		if (DeveloperModeAction && DeveloperCollisionAction)
+		if (DeveloperModeAction && DeveloperCollisionAction && DeveloperScaleActions.Num() == 5 && DeveloperScaleRestoreAction)
 		{
 			EnhancedInputComponent->BindAction(DeveloperModeAction, ETriggerEvent::Started, this, &ARealityCharacter::DoToggleDeveloperMode);
 			EnhancedInputComponent->BindAction(DeveloperCollisionAction, ETriggerEvent::Started, this, &ARealityCharacter::DoToggleDeveloperCollision);
+			EnhancedInputComponent->BindAction(DeveloperScaleActions[0], ETriggerEvent::Started, this, &ARealityCharacter::DoApplyDeveloperScaleQuarter);
+			EnhancedInputComponent->BindAction(DeveloperScaleActions[1], ETriggerEvent::Started, this, &ARealityCharacter::DoApplyDeveloperScaleHalf);
+			EnhancedInputComponent->BindAction(DeveloperScaleActions[2], ETriggerEvent::Started, this, &ARealityCharacter::DoApplyDeveloperScaleOne);
+			EnhancedInputComponent->BindAction(DeveloperScaleActions[3], ETriggerEvent::Started, this, &ARealityCharacter::DoApplyDeveloperScaleDouble);
+			EnhancedInputComponent->BindAction(DeveloperScaleActions[4], ETriggerEvent::Started, this, &ARealityCharacter::DoApplyDeveloperScaleQuadruple);
+			EnhancedInputComponent->BindAction(DeveloperScaleRestoreAction, ETriggerEvent::Started, this, &ARealityCharacter::DoRestoreDeveloperScale);
 		}
 		else
 		{
@@ -220,5 +245,53 @@ void ARealityCharacter::DoToggleDeveloperCollision()
 	if (DeveloperModeComponent)
 	{
 		DeveloperModeComponent->ToggleFocusedCollisionModification();
+	}
+}
+
+void ARealityCharacter::DoApplyDeveloperScaleQuarter()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->ApplyFocusedScaleModification(ERealityScalePreset::Quarter);
+	}
+}
+
+void ARealityCharacter::DoApplyDeveloperScaleHalf()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half);
+	}
+}
+
+void ARealityCharacter::DoApplyDeveloperScaleOne()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->ApplyFocusedScaleModification(ERealityScalePreset::One);
+	}
+}
+
+void ARealityCharacter::DoApplyDeveloperScaleDouble()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->ApplyFocusedScaleModification(ERealityScalePreset::Double);
+	}
+}
+
+void ARealityCharacter::DoApplyDeveloperScaleQuadruple()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->ApplyFocusedScaleModification(ERealityScalePreset::Quadruple);
+	}
+}
+
+void ARealityCharacter::DoRestoreDeveloperScale()
+{
+	if (DeveloperModeComponent)
+	{
+		DeveloperModeComponent->RestoreFocusedScaleModification();
 	}
 }

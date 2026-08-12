@@ -8,6 +8,42 @@
 #include "Reality.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Collision, "Cheat.Collision");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Scale, "Cheat.Scale");
+
+namespace RealityScale
+{
+	bool TryGetMultiplier(const ERealityScalePreset Preset, float& OutMultiplier)
+	{
+		switch (Preset)
+		{
+		case ERealityScalePreset::Quarter:
+			OutMultiplier = 0.25f;
+			return true;
+		case ERealityScalePreset::Half:
+			OutMultiplier = 0.5f;
+			return true;
+		case ERealityScalePreset::One:
+			OutMultiplier = 1.0f;
+			return true;
+		case ERealityScalePreset::Double:
+			OutMultiplier = 2.0f;
+			return true;
+		case ERealityScalePreset::Quadruple:
+			OutMultiplier = 4.0f;
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	FString GetPresetLabel(const ERealityScalePreset Preset)
+	{
+		float Multiplier = 0.0f;
+		return TryGetMultiplier(Preset, Multiplier)
+			? FString::Printf(TEXT("%gx"), Multiplier)
+			: TEXT("Invalid");
+	}
+}
 
 URealityEditableComponent::URealityEditableComponent()
 {
@@ -129,14 +165,127 @@ bool URealityEditableComponent::RestoreCollisionModification(AActor* Instigating
 	return true;
 }
 
+bool URealityEditableComponent::ApplyScaleModification(const ERealityScalePreset Preset, AActor* InstigatingActor)
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Scale: Apply failed because component '%s' has no valid Actor owner."), *GetNameSafe(this));
+		return false;
+	}
+
+	if (!SupportsCheat(TAG_Reality_Cheat_Scale))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Scale: Apply rejected for '%s' because Cheat.Scale is unsupported."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	float Multiplier = 0.0f;
+	if (!RealityScale::TryGetMultiplier(Preset, Multiplier))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Scale: Apply rejected for '%s' because preset value %d is invalid."), *GetNameSafe(Owner), static_cast<uint8>(Preset));
+		return false;
+	}
+
+	const FVector BaselineScale = bScaleModified ? OriginalScale : Owner->GetActorScale3D();
+	if (BaselineScale.ContainsNaN())
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Scale: Apply rejected for '%s' because its baseline scale is not finite."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	const FVector NewScale = BaselineScale * Multiplier;
+	if (NewScale.ContainsNaN())
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Scale: Apply rejected for '%s' because preset %s produced a non-finite scale."), *GetNameSafe(Owner), *RealityScale::GetPresetLabel(Preset));
+		return false;
+	}
+
+	const FVector CurrentScale = Owner->GetActorScale3D();
+	if (CurrentScale.Equals(NewScale))
+	{
+		UE_LOG(LogReality, Verbose, TEXT("Reality Scale: Apply ignored for '%s' because preset %s causes no scale change."), *GetNameSafe(Owner), *RealityScale::GetPresetLabel(Preset));
+		return false;
+	}
+
+	if (!bScaleModified)
+	{
+		OriginalScale = BaselineScale;
+		bScaleModified = true;
+	}
+
+	Owner->SetActorScale3D(NewScale);
+	CurrentScalePreset = Preset;
+	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Scale, InstigatingActor, ERealityCheatOperation::Apply);
+	OnRealityCheatEvent.Broadcast(CheatEvent);
+	UE_LOG(
+		LogReality,
+		Log,
+		TEXT("Reality Scale: Set '%s' to %s from baseline %s. Current scale=%s."),
+		*GetNameSafe(Owner),
+		*RealityScale::GetPresetLabel(Preset),
+		*OriginalScale.ToString(),
+		*NewScale.ToString());
+	return true;
+}
+
+bool URealityEditableComponent::RestoreScaleModification(AActor* InstigatingActor)
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Scale: Restore failed because component '%s' has no valid Actor owner."), *GetNameSafe(this));
+		return false;
+	}
+
+	if (!bScaleModified)
+	{
+		UE_LOG(LogReality, Verbose, TEXT("Reality Scale: Restore ignored for '%s' because scale is not modified."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	if (OriginalScale.ContainsNaN())
+	{
+		UE_LOG(LogReality, Error, TEXT("Reality Scale: Restore failed for '%s' because its captured scale is not finite; the active cycle remains intact."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	Owner->SetActorScale3D(OriginalScale);
+	const FVector RestoredScale = OriginalScale;
+	bScaleModified = false;
+	CurrentScalePreset = ERealityScalePreset::One;
+	OriginalScale = RestoredScale;
+
+	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Scale, InstigatingActor, ERealityCheatOperation::Restore);
+	OnRealityCheatEvent.Broadcast(CheatEvent);
+	UE_LOG(LogReality, Log, TEXT("Reality Scale: Restored '%s' to exact scale %s."), *GetNameSafe(Owner), *RestoredScale.ToString());
+	return true;
+}
+
+FVector URealityEditableComponent::GetOriginalScale() const
+{
+	if (bScaleModified)
+	{
+		return OriginalScale;
+	}
+
+	const AActor* Owner = GetOwner();
+	const FVector CurrentScale = IsValid(Owner) ? Owner->GetActorScale3D() : FVector::OneVector;
+	return !CurrentScale.ContainsNaN() ? CurrentScale : FVector::OneVector;
+}
+
 FString URealityEditableComponent::GetEditableDebugDescription() const
 {
 	return FString::Printf(
-		TEXT("Actor='%s' SupportedCheats=[%s] ObjectTags=[%s] CollisionModified=%s"),
+		TEXT("Actor='%s' SupportedCheats=[%s] ObjectTags=[%s] CollisionModified=%s ScaleModified=%s ScalePreset=%s OriginalScale=%s CurrentScale=%s"),
 		*GetNameSafe(GetOwner()),
 		*SupportedCheats.ToStringSimple(),
 		*ObjectTags.ToStringSimple(),
-		bCollisionModified ? TEXT("true") : TEXT("false"));
+		bCollisionModified ? TEXT("true") : TEXT("false"),
+		bScaleModified ? TEXT("true") : TEXT("false"),
+		*RealityScale::GetPresetLabel(CurrentScalePreset),
+		*GetOriginalScale().ToString(),
+		IsValid(GetOwner()) ? *GetOwner()->GetActorScale3D().ToString() : TEXT("Invalid"));
 }
 
 void URealityEditableComponent::LogEditableConfiguration() const

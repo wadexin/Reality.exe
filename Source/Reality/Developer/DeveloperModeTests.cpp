@@ -25,10 +25,16 @@ namespace DeveloperModeTests
 		return FGameplayTag::RequestGameplayTag(TEXT("Cheat.Collision"));
 	}
 
+	FGameplayTag GetScaleTag()
+	{
+		return FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"));
+	}
+
 	void EnableCollisionCapability(URealityEditableComponent* EditableComponent)
 	{
 		FGameplayTagContainer SupportedCheats;
 		SupportedCheats.AddTag(GetCollisionTag());
+		SupportedCheats.AddTag(GetScaleTag());
 		EditableComponent->SetSupportedCheats(SupportedCheats);
 	}
 
@@ -68,9 +74,13 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 
 	UInputAction* DeveloperModeAction = CharacterCDO->GetDeveloperModeAction();
 	UInputAction* DeveloperCollisionAction = CharacterCDO->GetDeveloperCollisionAction();
+	const TArray<TObjectPtr<UInputAction>>& DeveloperScaleActions = CharacterCDO->GetDeveloperScaleActions();
+	UInputAction* DeveloperScaleRestoreAction = CharacterCDO->GetDeveloperScaleRestoreAction();
 	UInputMappingContext* DeveloperMappingContext = CharacterCDO->GetDeveloperMappingContext();
 	TestNotNull(TEXT("The character owns a Developer Mode Enhanced Input action"), DeveloperModeAction);
 	TestNotNull(TEXT("The character owns a Developer Collision Enhanced Input action"), DeveloperCollisionAction);
+	TestEqual(TEXT("The character owns five Developer Scale preset actions"), DeveloperScaleActions.Num(), 5);
+	TestNotNull(TEXT("The character owns a Developer Scale Restore action"), DeveloperScaleRestoreAction);
 	TestNotNull(TEXT("The character owns a Developer mapping context"), DeveloperMappingContext);
 	if (DeveloperModeAction && DeveloperCollisionAction && DeveloperMappingContext)
 	{
@@ -86,6 +96,23 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 			});
 		TestTrue(TEXT("Developer Mode defaults to F1"), bHasF1Mapping);
 		TestTrue(TEXT("The prototype Collision action defaults to R"), bHasCollisionMapping);
+		const FKey ExpectedScaleKeys[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five};
+		for (int32 ScaleActionIndex = 0; ScaleActionIndex < DeveloperScaleActions.Num(); ++ScaleActionIndex)
+		{
+			const bool bHasScaleMapping = DeveloperMappingContext->GetMappings().ContainsByPredicate(
+				[&DeveloperScaleActions, &ExpectedScaleKeys, ScaleActionIndex](const FEnhancedActionKeyMapping& Mapping)
+				{
+					return Mapping.Action == DeveloperScaleActions[ScaleActionIndex] && Mapping.Key == ExpectedScaleKeys[ScaleActionIndex];
+				});
+			TestTrue(*FString::Printf(TEXT("Scale preset action %d uses its expected number key"), ScaleActionIndex), bHasScaleMapping);
+		}
+		TestTrue(
+			TEXT("Scale Restore defaults to T"),
+			DeveloperMappingContext->GetMappings().ContainsByPredicate(
+				[DeveloperScaleRestoreAction](const FEnhancedActionKeyMapping& Mapping)
+				{
+					return Mapping.Action == DeveloperScaleRestoreAction && Mapping.Key == EKeys::T;
+				}));
 	}
 
 	UClass* FirstPersonCharacterClass = LoadClass<ARealityCharacter>(nullptr, TEXT("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter.BP_FirstPersonCharacter_C"));
@@ -96,9 +123,13 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 		TestNotNull(TEXT("The First Person Blueprint inherits Developer Mode"), FirstPersonCDO->GetDeveloperModeComponent());
 		UInputAction* FirstPersonModeAction = FirstPersonCDO->GetDeveloperModeAction();
 		UInputAction* FirstPersonCollisionAction = FirstPersonCDO->GetDeveloperCollisionAction();
+		const TArray<TObjectPtr<UInputAction>>& FirstPersonScaleActions = FirstPersonCDO->GetDeveloperScaleActions();
+		UInputAction* FirstPersonScaleRestoreAction = FirstPersonCDO->GetDeveloperScaleRestoreAction();
 		UInputMappingContext* FirstPersonMappingContext = FirstPersonCDO->GetDeveloperMappingContext();
 		TestNotNull(TEXT("The First Person Blueprint inherits the F1 action"), FirstPersonModeAction);
 		TestNotNull(TEXT("The First Person Blueprint inherits the R action"), FirstPersonCollisionAction);
+		TestEqual(TEXT("The First Person Blueprint inherits five Scale actions"), FirstPersonScaleActions.Num(), 5);
+		TestNotNull(TEXT("The First Person Blueprint inherits the Scale Restore action"), FirstPersonScaleRestoreAction);
 		TestNotNull(TEXT("The First Person Blueprint inherits the Developer mapping context"), FirstPersonMappingContext);
 		if (FirstPersonModeAction && FirstPersonCollisionAction && FirstPersonMappingContext)
 		{
@@ -115,6 +146,25 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 					[FirstPersonCollisionAction](const FEnhancedActionKeyMapping& Mapping)
 					{
 						return Mapping.Action == FirstPersonCollisionAction && Mapping.Key == EKeys::R;
+					}));
+			const FKey ExpectedFirstPersonScaleKeys[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five};
+			for (int32 ScaleActionIndex = 0; ScaleActionIndex < FirstPersonScaleActions.Num(); ++ScaleActionIndex)
+			{
+				TestTrue(
+					*FString::Printf(TEXT("The First Person Blueprint retains Scale mapping %d"), ScaleActionIndex),
+					FirstPersonMappingContext->GetMappings().ContainsByPredicate(
+						[&FirstPersonScaleActions, &ExpectedFirstPersonScaleKeys, ScaleActionIndex](const FEnhancedActionKeyMapping& Mapping)
+						{
+							return Mapping.Action == FirstPersonScaleActions[ScaleActionIndex]
+								&& Mapping.Key == ExpectedFirstPersonScaleKeys[ScaleActionIndex];
+						}));
+			}
+			TestTrue(
+				TEXT("The First Person Blueprint retains Scale Restore on T"),
+				FirstPersonMappingContext->GetMappings().ContainsByPredicate(
+					[FirstPersonScaleRestoreAction](const FEnhancedActionKeyMapping& Mapping)
+					{
+						return Mapping.Action == FirstPersonScaleRestoreAction && Mapping.Key == EKeys::T;
 					}));
 		}
 	}
@@ -140,6 +190,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("A runtime Developer Mode component starts inactive"), DeveloperComponent->IsDeveloperModeActive());
 	TestFalse(TEXT("Developer scanning Tick is disabled while mode is inactive"), DeveloperComponent->IsComponentTickEnabled());
 	TestFalse(TEXT("Collision invocation does nothing while Developer Mode is inactive"), DeveloperComponent->ToggleFocusedCollisionModification());
+	TestFalse(TEXT("Scale invocation does nothing while Developer Mode is inactive"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
+	TestFalse(TEXT("Scale Restore does nothing while Developer Mode is inactive"), DeveloperComponent->RestoreFocusedScaleModification());
 
 	ARealityEditableTestActor* EditableActorA = SpawnEditable(TestWorld, FVector(150.0f, 0.0f, 0.0f));
 	DeveloperComponent->OnDeveloperFocusGained.AddDynamic(EditableActorA, &ARealityEditableTestActor::HandleDeveloperFocusGained);
@@ -176,6 +228,12 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Focused Collision is restored"), EditableActorA->EditableComponent->IsCollisionModified());
 	TestEqual(TEXT("Developer Restore emits one additional event"), EditableActorA->CheatEventCount, 2);
 	TestEqual(TEXT("Developer Restore retains the player instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
+	TestTrue(TEXT("Focused Scale prototype invokes Apply"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
+	TestEqual(TEXT("Developer Scale Apply changes the focused Actor"), EditableActorA->GetActorScale3D(), FVector(0.5f));
+	TestEqual(TEXT("Developer Scale Apply uses the player-side owner as instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
+	TestEqual(TEXT("Developer Scale Apply uses Cheat.Scale"), EditableActorA->LastCheatEvent.CheatTag, GetScaleTag());
+	TestTrue(TEXT("Focused Scale prototype invokes Restore"), DeveloperComponent->RestoreFocusedScaleModification());
+	TestEqual(TEXT("Developer Scale Restore returns the focused Actor to baseline"), EditableActorA->GetActorScale3D(), FVector::OneVector);
 
 	// Multiple simultaneously modified targets must remain independently reacquirable and restorable.
 	ARealityEditableTestActor* EditableActorMultiB = SpawnEditable(TestWorld, FVector(150.0f, 250.0f, 0.0f));
@@ -241,11 +299,15 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	DeveloperComponent->UpdateDeveloperFocus();
 	TestEqual(TEXT("Actor B can regain focus"), DeveloperComponent->GetFocusedDeveloperActor(), static_cast<AActor*>(EditableActorB));
 	TestFalse(TEXT("Unsupported focused Collision fails safely"), DeveloperComponent->ToggleFocusedCollisionModification());
+	TestFalse(TEXT("Unsupported focused Scale fails safely"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
+	TestFalse(TEXT("Unsupported focused Scale Restore fails safely"), DeveloperComponent->RestoreFocusedScaleModification());
 
 	TestFalse(TEXT("Second mode toggle deactivates Developer Mode"), DeveloperComponent->ToggleDeveloperMode());
 	TestFalse(TEXT("Developer scanning Tick disables again"), DeveloperComponent->IsComponentTickEnabled());
 	TestNull(TEXT("Exiting Developer Mode clears focus"), DeveloperComponent->GetFocusedDeveloperActor());
 	TestFalse(TEXT("Collision invocation remains disabled after mode exit"), DeveloperComponent->ToggleFocusedCollisionModification());
+	TestFalse(TEXT("Scale invocation remains disabled after mode exit"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
+	TestFalse(TEXT("Scale Restore remains disabled after mode exit"), DeveloperComponent->RestoreFocusedScaleModification());
 
 	TestWorld->DestroyWorld(false);
 	TestWorld->SetPhysicsScene(nullptr);

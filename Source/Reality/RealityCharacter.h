@@ -79,6 +79,14 @@ protected:
 	/** Input Mapping Context containing F1 Developer Mode and R Collision prototype bindings. */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputMappingContext* DeveloperMappingContext;
+
+	/** Prototype Scale preset inputs ordered 0.25x, 0.5x, 1.0x, 2.0x, and 4.0x. */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TArray<TObjectPtr<UInputAction>> DeveloperScaleActions;
+
+	/** Restores the focused Actor's active Scale cycle. */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* DeveloperScaleRestoreAction;
 	
 public:
 	/** Adds the interaction mapping context for the locally controlled player. */
@@ -122,6 +130,13 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoToggleDeveloperCollision();
 
+	void DoApplyDeveloperScaleQuarter();
+	void DoApplyDeveloperScaleHalf();
+	void DoApplyDeveloperScaleOne();
+	void DoApplyDeveloperScaleDouble();
+	void DoApplyDeveloperScaleQuadruple();
+	void DoRestoreDeveloperScale();
+
 protected:
 
 	/** Set up input action bindings */
@@ -156,6 +171,12 @@ public:
 
 	/** Returns the mapping context containing Developer Mode prototype controls. */
 	UInputMappingContext* GetDeveloperMappingContext() const { return DeveloperMappingContext; }
+
+	/** Returns the five Enhanced Input actions for the ordered Scale presets. */
+	const TArray<TObjectPtr<UInputAction>>& GetDeveloperScaleActions() const { return DeveloperScaleActions; }
+
+	/** Returns the Enhanced Input action used to restore Scale. */
+	UInputAction* GetDeveloperScaleRestoreAction() const { return DeveloperScaleRestoreAction; }
 
 };
 
