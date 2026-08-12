@@ -11,6 +11,8 @@ class UInputComponent;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
+class UInputMappingContext;
+class UInteractionComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -31,6 +33,10 @@ class ARealityCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FirstPersonCameraComponent;
 
+	/** Reusable viewpoint-based interaction component. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UInteractionComponent* InteractionComponent;
+
 protected:
 
 	/** Jump Input Action */
@@ -48,8 +54,19 @@ protected:
 	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	class UInputAction* MouseLookAction;
+
+	/** Interaction Input Action */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* InteractionAction;
+
+	/** Input Mapping Context containing the default interaction key mapping. */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputMappingContext* InteractionMappingContext;
 	
 public:
+	/** Adds the interaction mapping context for the locally controlled player. */
+	virtual void PawnClientRestart() override;
+
 	ARealityCharacter();
 
 protected:
@@ -76,6 +93,10 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
 
+	/** Attempts to interact with the actor currently focused by the interaction component. */
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	virtual void DoInteract();
+
 protected:
 
 	/** Set up input action bindings */
@@ -89,6 +110,15 @@ public:
 
 	/** Returns first person camera component **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
+
+	/** Returns the player interaction component. */
+	UInteractionComponent* GetInteractionComponent() const { return InteractionComponent; }
+
+	/** Returns the Enhanced Input action used for interaction. */
+	UInputAction* GetInteractionAction() const { return InteractionAction; }
+
+	/** Returns the Enhanced Input mapping context containing the default interaction binding. */
+	UInputMappingContext* GetInteractionMappingContext() const { return InteractionMappingContext; }
 
 };
 

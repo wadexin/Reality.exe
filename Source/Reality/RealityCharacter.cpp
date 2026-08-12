@@ -6,8 +6,14 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
+#include "InputAction.h"
 #include "InputActionValue.h"
+#include "InputMappingContext.h"
+#include "InputCoreTypes.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Interaction/InteractionComponent.h"
 #include "Reality.h"
 
 ARealityCharacter::ARealityCharacter()
@@ -33,6 +39,15 @@ ARealityCharacter::ARealityCharacter()
 	FirstPersonCameraComponent->FirstPersonFieldOfView = 70.0f;
 	FirstPersonCameraComponent->FirstPersonScale = 0.6f;
 
+	// Create the reusable interaction component.
+	InteractionComponent = CreateDefaultSubobject<UInteractionComponent>(TEXT("Interaction Component"));
+	InteractionAction = CreateDefaultSubobject<UInputAction>(TEXT("Interaction Action"));
+	InteractionMappingContext = CreateDefaultSubobject<UInputMappingContext>(TEXT("Interaction Mapping Context"));
+	if (!InteractionMappingContext->HasMappingForInputAction(InteractionAction))
+	{
+		InteractionMappingContext->MapKey(InteractionAction, EKeys::E);
+	}
+
 	// configure the character comps
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
@@ -42,6 +57,31 @@ ARealityCharacter::ARealityCharacter()
 	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
+}
+
+void ARealityCharacter::PawnClientRestart()
+{
+	Super::PawnClientRestart();
+
+	if (!InteractionMappingContext)
+	{
+		UE_LOG(LogReality, Error, TEXT("'%s' has no Interaction Mapping Context configured."), *GetNameSafe(this));
+		return;
+	}
+
+	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			{
+				if (!Subsystem->HasMappingContext(InteractionMappingContext))
+				{
+					Subsystem->AddMappingContext(InteractionMappingContext, 0);
+				}
+			}
+		}
+	}
 }
 
 void ARealityCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -59,6 +99,16 @@ void ARealityCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		// Looking/Aiming
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARealityCharacter::LookInput);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ARealityCharacter::LookInput);
+
+		// Interacting
+		if (InteractionAction)
+		{
+			EnhancedInputComponent->BindAction(InteractionAction, ETriggerEvent::Started, this, &ARealityCharacter::DoInteract);
+		}
+		else
+		{
+			UE_LOG(LogReality, Warning, TEXT("'%s' has no Interaction Input Action configured."), *GetNameSafe(this));
+		}
 	}
 	else
 	{
@@ -117,4 +167,12 @@ void ARealityCharacter::DoJumpEnd()
 {
 	// pass StopJumping to the character
 	StopJumping();
+}
+
+void ARealityCharacter::DoInteract()
+{
+	if (InteractionComponent)
+	{
+		InteractionComponent->InteractWithFocusedActor();
+	}
 }
