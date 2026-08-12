@@ -6,6 +6,7 @@ Saved/
 
 # Visual Studio
 .vs/
+*.sln
 *.VC.db
 *.VC.opendb
 *.suo
