@@ -4,6 +4,7 @@
 
 #include "AI/RealityWitnessComponent.h"
 #include "Reality.h"
+#include "RealitySystem/RealityContextComponent.h"
 #include "RealitySystem/RealitySuspicionSettings.h"
 
 void URealityManagerSubsystem::RegisterWitness(URealityWitnessComponent* WitnessComponent)
@@ -35,6 +36,35 @@ int32 URealityManagerSubsystem::GetRegisteredWitnessCount()
 	return RegisteredWitnesses.Num();
 }
 
+void URealityManagerSubsystem::RegisterContext(URealityContextComponent* ContextComponent)
+{
+	if (IsValid(ContextComponent) && ContextComponent->GetWorld() == GetWorld())
+	{
+		RegisteredContexts.AddUnique(ContextComponent);
+	}
+}
+
+void URealityManagerSubsystem::UnregisterContext(URealityContextComponent* ContextComponent)
+{
+	RegisteredContexts.RemoveAllSwap(
+		[ContextComponent](const TWeakObjectPtr<URealityContextComponent>& RegisteredContext)
+		{
+			return !RegisteredContext.IsValid() || RegisteredContext.Get() == ContextComponent;
+		},
+		EAllowShrinking::No);
+}
+
+int32 URealityManagerSubsystem::GetRegisteredContextCount()
+{
+	RegisteredContexts.RemoveAllSwap(
+		[](const TWeakObjectPtr<URealityContextComponent>& RegisteredContext)
+		{
+			return !RegisteredContext.IsValid();
+		},
+		EAllowShrinking::No);
+	return RegisteredContexts.Num();
+}
+
 bool URealityManagerSubsystem::ProcessCheatEvent(const FRealityCheatEvent& CheatEvent)
 {
 	if (CheatEvent.Operation != ERealityCheatOperation::Apply && CheatEvent.Operation != ERealityCheatOperation::Restore)
@@ -58,15 +88,20 @@ bool URealityManagerSubsystem::ProcessCheatEvent(const FRealityCheatEvent& Cheat
 	const float WitnessDelta = CheatEvent.Operation == ERealityCheatOperation::Apply
 		? EvaluateWitnesses(CheatEvent, ObservingWitnesses)
 		: 0.0f;
+	const float RawRisk = BaseDelta + WitnessDelta;
+	FGameplayTagContainer MatchedContextTags;
+	const float ContextReduction = CheatEvent.Operation == ERealityCheatOperation::Apply
+		? EvaluateContexts(CheatEvent, RawRisk, MatchedContextTags)
+		: 0.0f;
 	const float SuspicionBefore = CurrentSuspicion;
-	const float RequestedDelta = BaseDelta + WitnessDelta;
+	const float RequestedDelta = RawRisk - ContextReduction;
 	const float SuspicionAfter = FMath::Clamp(SuspicionBefore + RequestedDelta, 0.0f, 100.0f);
 	const float AppliedDelta = SuspicionAfter - SuspicionBefore;
 	const ERealityState PreviousState = CurrentRealityState;
 
 	CurrentSuspicion = SuspicionAfter;
 	CurrentRealityState = CalculateRealityState(CurrentSuspicion);
-	AddHistoryRecord(CheatEvent, BaseDelta, WitnessDelta, ObservingWitnesses.Num(), AppliedDelta, SuspicionBefore, SuspicionAfter);
+	AddHistoryRecord(CheatEvent, BaseDelta, WitnessDelta, ObservingWitnesses.Num(), ContextReduction, MatchedContextTags, AppliedDelta, SuspicionBefore, SuspicionAfter);
 
 	for (const TWeakObjectPtr<URealityWitnessComponent>& ObservingWitness : ObservingWitnesses)
 	{
@@ -85,18 +120,69 @@ bool URealityManagerSubsystem::ProcessCheatEvent(const FRealityCheatEvent& Cheat
 		OnRealityStateChanged.Broadcast(PreviousState, CurrentRealityState);
 	}
 
-	UE_LOG(LogReality, Log, TEXT("Reality Manager: %s %s Target='%s' Base=%+.1f Witness=%+.1f Observers=%d Delta=%+.1f Suspicion=%.1f->%.1f State=%s."),
+	UE_LOG(LogReality, Log, TEXT("Reality Manager: %s %s Target='%s' Base=%+.1f Witness=%+.1f Observers=%d Context=-%.1f MatchedContexts=%d Delta=%+.1f Suspicion=%.1f->%.1f State=%s."),
 		*CheatEvent.CheatTag.ToString(),
 		CheatEvent.Operation == ERealityCheatOperation::Apply ? TEXT("Apply") : TEXT("Restore"),
 		*GetNameSafe(CheatEvent.TargetActor),
 		BaseDelta,
 		WitnessDelta,
 		ObservingWitnesses.Num(),
+		ContextReduction,
+		MatchedContextTags.Num(),
 		AppliedDelta,
 		SuspicionBefore,
 		SuspicionAfter,
 		*StaticEnum<ERealityState>()->GetNameStringByValue(static_cast<int64>(CurrentRealityState)));
 	return true;
+}
+
+float URealityManagerSubsystem::EvaluateContexts(
+	const FRealityCheatEvent& CheatEvent,
+	const float RawRisk,
+	FGameplayTagContainer& OutMatchedContextTags)
+{
+	const URealitySuspicionSettings* Settings = GetDefault<URealitySuspicionSettings>();
+	if (!Settings || !IsValid(CheatEvent.TargetActor) || RawRisk <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	TMap<FGameplayTag, float> StrongestReductionByTag;
+	for (int32 ContextIndex = RegisteredContexts.Num() - 1; ContextIndex >= 0; --ContextIndex)
+	{
+		URealityContextComponent* ContextComponent = RegisteredContexts[ContextIndex].Get();
+		if (!IsValid(ContextComponent) || ContextComponent->GetWorld() != GetWorld())
+		{
+			RegisteredContexts.RemoveAtSwap(ContextIndex, 1, EAllowShrinking::No);
+			continue;
+		}
+		if (!ContextComponent->IsContextActive() || !ContextComponent->IsTargetWithinContext(CheatEvent.TargetActor))
+		{
+			continue;
+		}
+
+		for (const FGameplayTag ContextTag : ContextComponent->GetContextTags())
+		{
+			float RuleReduction = 0.0f;
+			if (Settings->FindContextReduction(CheatEvent.CheatTag, ContextTag, RuleReduction))
+			{
+				float& StrongestReduction = StrongestReductionByTag.FindOrAdd(ContextTag);
+				StrongestReduction = FMath::Max(StrongestReduction, RuleReduction);
+			}
+		}
+	}
+
+	float RawContextReduction = 0.0f;
+	for (const TPair<FGameplayTag, float>& MatchingContext : StrongestReductionByTag)
+	{
+		OutMatchedContextTags.AddTag(MatchingContext.Key);
+		RawContextReduction += MatchingContext.Value;
+	}
+
+	return FMath::Min3(
+		RawContextReduction,
+		FMath::Max(0.0f, Settings->MaximumContextReductionPerEvent),
+		FMath::Max(0.0f, RawRisk));
 }
 
 float URealityManagerSubsystem::EvaluateWitnesses(
@@ -199,6 +285,8 @@ void URealityManagerSubsystem::AddHistoryRecord(
 	const float BaseDelta,
 	const float WitnessDelta,
 	const int32 ObserverCount,
+	const float ContextReduction,
+	const FGameplayTagContainer& MatchedContextTags,
 	const float AppliedDelta,
 	const float Before,
 	const float After)
@@ -211,6 +299,9 @@ void URealityManagerSubsystem::AddHistoryRecord(
 	Record.BaseSuspicionDelta = BaseDelta;
 	Record.WitnessSuspicionDelta = WitnessDelta;
 	Record.ObservingWitnessCount = ObserverCount;
+	Record.ContextSuspicionReduction = ContextReduction;
+	Record.MatchedContextTags = MatchedContextTags;
+	Record.MatchedContextCount = MatchedContextTags.Num();
 	Record.SuspicionBefore = Before;
 	Record.SuspicionAfter = After;
 	Record.ResultingState = CurrentRealityState;

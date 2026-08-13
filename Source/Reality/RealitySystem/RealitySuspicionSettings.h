@@ -47,6 +47,26 @@ struct REALITY_API FRealityWitnessSuspicionRule
 	float SuspicionValue = 0.0f;
 };
 
+/** One semantic plausibility rule matching an exact Cheat and Context tag pair. */
+USTRUCT(BlueprintType)
+struct REALITY_API FRealityContextPlausibilityRule
+{
+	GENERATED_BODY()
+
+	FRealityContextPlausibilityRule() = default;
+	FRealityContextPlausibilityRule(const FGameplayTag InCheatTag, const FGameplayTag InContextTag, const float InSuspicionReduction)
+		: CheatTag(InCheatTag), ContextTag(InContextTag), SuspicionReduction(InSuspicionReduction) {}
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Context", meta = (Categories = "Cheat"))
+	FGameplayTag CheatTag;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Context", meta = (Categories = "Context"))
+	FGameplayTag ContextTag;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Context", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float SuspicionReduction = 0.0f;
+};
+
 /** Lightweight project settings for prototype Suspicion rules, thresholds, and debug-history capacity. */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Reality Suspicion"))
 class REALITY_API URealitySuspicionSettings : public UDeveloperSettings
@@ -62,6 +82,9 @@ public:
 	/** Finds the exact configured evidence value for a supported Witness category. */
 	bool FindWitnessSuspicion(FGameplayTag WitnessType, float& OutSuspicionValue) const;
 
+	/** Finds the strongest exact rule for one Cheat/Context pair. */
+	bool FindContextReduction(FGameplayTag CheatTag, FGameplayTag ContextTag, float& OutSuspicionReduction) const;
+
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Suspicion")
 	TArray<FRealityCheatSuspicionRule> CheatSuspicionRules;
 
@@ -73,6 +96,12 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Witness", meta = (ClampMin = "0.0", ClampMax = "100.0"))
 	float MaximumWitnessBonusPerEvent = 30.0f;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Context")
+	TArray<FRealityContextPlausibilityRule> ContextPlausibilityRules;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Context", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float MaximumContextReductionPerEvent = 25.0f;
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "State Thresholds", meta = (ClampMin = "0.0", ClampMax = "100.0"))
 	float QuestioningThreshold = 20.0f;

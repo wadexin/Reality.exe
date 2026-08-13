@@ -442,13 +442,19 @@ void UDeveloperModeComponent::RefreshDebugReadout() const
 			if (const FRealityProcessedCheatRecord* LastEvent = RealityManager->GetMostRecentEvent())
 			{
 				Readout += FString::Printf(
-					TEXT("\nLast Event: %s %s %+.0f\nBase: %+.0f\nWitness: %+.0f\nObserved By: %d"),
+					TEXT("\nLast Event: %s %s %+.0f\nBase: %+.0f\nWitness: %+.0f\nContext: -%.0f\nObserved By: %d\nMatched Contexts: %d"),
 					*LastEvent->CheatTag.ToString(),
 					LastEvent->Operation == ERealityCheatOperation::Apply ? TEXT("Apply") : TEXT("Restore"),
 					LastEvent->SuspicionDelta,
 					LastEvent->BaseSuspicionDelta,
 					LastEvent->WitnessSuspicionDelta,
-					LastEvent->ObservingWitnessCount);
+					LastEvent->ContextSuspicionReduction,
+					LastEvent->ObservingWitnessCount,
+					LastEvent->MatchedContextCount);
+				if (!LastEvent->MatchedContextTags.IsEmpty())
+				{
+					Readout += FString::Printf(TEXT("\nPlausibility: %s"), *LastEvent->MatchedContextTags.ToStringSimple());
+				}
 			}
 		}
 	}
