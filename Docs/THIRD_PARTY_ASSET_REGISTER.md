@@ -30,3 +30,14 @@ Every external source must add a row before its first production commit with:
 - UE staging results, excluded dependencies, and later removal/replacement history
 
 Receipts and account details belong in restricted team records, not in the repository.
+
+## Task 021 readability revision — 2026-08-13
+
+Four ambientCG surface sources were acquired directly from their official asset pages as the 2K-JPG packages. ambientCG identifies its downloadable assets as Creative Commons CC0 1.0 Universal. Only Base Color, DirectX Normal, and Roughness maps entered the repository; archives, previews, displacement, OpenGL normals, DCC files, and package metadata were excluded.
+
+| Asset/source | Publisher | Source | Acquisition date | License | Original package | Imported Reality paths | Purpose | Modifications/derived assets | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| Plaster 002 (`Plaster002`) | ambientCG | https://ambientcg.com/view?id=Plaster002 | 2026-08-13 | Creative Commons CC0 1.0 Universal, as stated by ambientCG | `Plaster002_2K-JPG.zip` | `/Game/ThirdParty/ambientCG/Surfaces/Plaster002/` | Painted/plaster facility walls | Texture parameters in `M_FacilitySurface`; used by warm-white and cool-gray facility instances | Imported Color, NormalDX, and Roughness only; 2048 maximum texture size. |
+| Concrete 010 (`Concrete010`) | ambientCG | https://ambientcg.com/view?id=Concrete010 | 2026-08-13 | Creative Commons CC0 1.0 Universal, as stated by ambientCG | `Concrete010_2K-JPG.zip` | `/Game/ThirdParty/ambientCG/Surfaces/Concrete010/` | Sealed concrete and controlled test-floor surfaces | Texture parameters in `M_FacilitySurface`; selected by sealed-concrete and Physics/test instances | Imported Color, NormalDX, and Roughness only; 2048 maximum texture size. |
+| Painted Metal 007 (`PaintedMetal007`) | ambientCG | https://ambientcg.com/view?id=PaintedMetal007 | 2026-08-13 | Creative Commons CC0 1.0 Universal, as stated by ambientCG | `PaintedMetal007_2K-JPG.zip` | `/Game/ThirdParty/ambientCG/Surfaces/PaintedMetal007/` | Painted and dark structural metal surface detail | Default texture set in `M_PaintedMetal`; color remains controlled by existing Material Instances | Imported Color, NormalDX, and Roughness only; source blue is restrained by project tinting. |
+| Metal 010 (`Metal010`) | ambientCG | https://ambientcg.com/view?id=Metal010 | 2026-08-13 | Creative Commons CC0 1.0 Universal, as stated by ambientCG | `Metal010_2K-JPG.zip` | `/Game/ThirdParty/ambientCG/Surfaces/Metal010/` | Galvanized and utility-metal surface detail | Default texture set in `M_UtilitySurface`; project instances control tone and roughness | Imported Color, NormalDX, and Roughness only; displacement and duplicate NormalGL excluded. |
