@@ -93,17 +93,17 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestNotNull(TEXT("The character owns a Developer mapping context"), DeveloperMappingContext);
 	if (DeveloperModeAction && DeveloperCollisionAction && DeveloperMappingContext)
 	{
-		const bool bHasF1Mapping = DeveloperMappingContext->GetMappings().ContainsByPredicate(
+		const bool bHasF6Mapping = DeveloperMappingContext->GetMappings().ContainsByPredicate(
 			[DeveloperModeAction](const FEnhancedActionKeyMapping& Mapping)
 			{
-				return Mapping.Action == DeveloperModeAction && Mapping.Key == EKeys::F1;
+				return Mapping.Action == DeveloperModeAction && Mapping.Key == EKeys::F6;
 			});
 		const bool bHasCollisionMapping = DeveloperMappingContext->GetMappings().ContainsByPredicate(
 			[DeveloperCollisionAction](const FEnhancedActionKeyMapping& Mapping)
 			{
 				return Mapping.Action == DeveloperCollisionAction && Mapping.Key == EKeys::R;
 			});
-		TestTrue(TEXT("Developer Mode defaults to F1"), bHasF1Mapping);
+		TestTrue(TEXT("Developer Mode defaults to F6"), bHasF6Mapping);
 		TestTrue(TEXT("The prototype Collision action defaults to R"), bHasCollisionMapping);
 		const FKey ExpectedScaleKeys[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five};
 		for (int32 ScaleActionIndex = 0; ScaleActionIndex < DeveloperScaleActions.Num(); ++ScaleActionIndex)
@@ -151,7 +151,7 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 		UInputAction* FirstPersonGravityCycleAction = FirstPersonCDO->GetDeveloperGravityCycleAction();
 		UInputAction* FirstPersonGravityRestoreAction = FirstPersonCDO->GetDeveloperGravityRestoreAction();
 		UInputMappingContext* FirstPersonMappingContext = FirstPersonCDO->GetDeveloperMappingContext();
-		TestNotNull(TEXT("The First Person Blueprint inherits the F1 action"), FirstPersonModeAction);
+		TestNotNull(TEXT("The First Person Blueprint inherits the F6 action"), FirstPersonModeAction);
 		TestNotNull(TEXT("The First Person Blueprint inherits the R action"), FirstPersonCollisionAction);
 		TestEqual(TEXT("The First Person Blueprint inherits five Scale actions"), FirstPersonScaleActions.Num(), 5);
 		TestNotNull(TEXT("The First Person Blueprint inherits the Scale Restore action"), FirstPersonScaleRestoreAction);
@@ -161,11 +161,11 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 		if (FirstPersonModeAction && FirstPersonCollisionAction && FirstPersonMappingContext)
 		{
 			TestTrue(
-				TEXT("The First Person Blueprint retains the F1 mapping"),
+				TEXT("The First Person Blueprint retains the F6 mapping"),
 				FirstPersonMappingContext->GetMappings().ContainsByPredicate(
 					[FirstPersonModeAction](const FEnhancedActionKeyMapping& Mapping)
 					{
-						return Mapping.Action == FirstPersonModeAction && Mapping.Key == EKeys::F1;
+						return Mapping.Action == FirstPersonModeAction && Mapping.Key == EKeys::F6;
 					}));
 			TestTrue(
 				TEXT("The First Person Blueprint retains the R mapping"),

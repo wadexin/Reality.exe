@@ -65,7 +65,7 @@ ARealityCharacter::ARealityCharacter()
 	DeveloperMappingContext = CreateDefaultSubobject<UInputMappingContext>(TEXT("Developer Mapping Context"));
 	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperModeAction))
 	{
-		DeveloperMappingContext->MapKey(DeveloperModeAction, EKeys::F1);
+		DeveloperMappingContext->MapKey(DeveloperModeAction, EKeys::F6);
 	}
 	if (!DeveloperMappingContext->HasMappingForInputAction(DeveloperCollisionAction))
 	{

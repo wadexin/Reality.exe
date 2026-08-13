@@ -76,7 +76,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* DeveloperCollisionAction;
 
-	/** Input Mapping Context containing F1 Developer Mode and R Collision prototype bindings. */
+	/** Input Mapping Context containing F6 Developer Mode and R Collision prototype bindings. */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputMappingContext* DeveloperMappingContext;
 
