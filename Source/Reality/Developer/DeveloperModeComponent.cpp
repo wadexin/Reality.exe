@@ -3,12 +3,14 @@
 #include "Developer/DeveloperModeComponent.h"
 
 #include "Developer/RealityEditableComponent.h"
+#include "Developer/DeveloperTargetPresentationComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Reality.h"
 #include "RealitySystem/RealityManagerSubsystem.h"
+#include "TimerManager.h"
 
 namespace DeveloperModeDebug
 {
@@ -62,6 +64,10 @@ void UDeveloperModeComponent::EnterDeveloperMode()
 	}
 
 	bDeveloperModeActive = true;
+	if (UDeveloperTargetPresentationComponent* Presentation = GetOwner()->FindComponentByClass<UDeveloperTargetPresentationComponent>())
+	{
+		Presentation->SetPresentationActive(true);
+	}
 	SetComponentTickEnabled(false);
 	UE_LOG(LogReality, Log, TEXT("Developer Mode: Entered for '%s'."), *GetNameSafe(GetOwner()));
 	UpdateDeveloperFocus();
@@ -80,8 +86,13 @@ void UDeveloperModeComponent::ExitDeveloperMode()
 	}
 
 	bDeveloperModeActive = false;
+	ClearOperationFeedback();
 	SetComponentTickEnabled(false);
 	SetFocusedEditableComponent(nullptr);
+	if (UDeveloperTargetPresentationComponent* Presentation = GetOwner()->FindComponentByClass<UDeveloperTargetPresentationComponent>())
+	{
+		Presentation->SetPresentationActive(false);
+	}
 	ClearDebugReadout();
 	OnDeveloperModeChanged.Broadcast(false);
 	UE_LOG(LogReality, Log, TEXT("Developer Mode: Exited for '%s'."), *GetNameSafe(GetOwner()));
@@ -381,6 +392,10 @@ void UDeveloperModeComponent::SetFocusedEditableComponent(URealityEditableCompon
 	}
 
 	AActor* PreviousActor = FocusedDeveloperActor.Get();
+	if (URealityEditableComponent* PreviousEditable = FocusedEditableComponent.Get())
+	{
+		PreviousEditable->OnRealityCheatEvent.RemoveDynamic(this, &UDeveloperModeComponent::HandleFocusedRealityCheatEvent);
+	}
 	if (PreviousActor)
 	{
 		PreviousActor->OnDestroyed.RemoveDynamic(this, &UDeveloperModeComponent::HandleFocusedActorDestroyed);
@@ -398,8 +413,14 @@ void UDeveloperModeComponent::SetFocusedEditableComponent(URealityEditableCompon
 	if (NewActor)
 	{
 		NewActor->OnDestroyed.AddUniqueDynamic(this, &UDeveloperModeComponent::HandleFocusedActorDestroyed);
+		NewEditableComponent->OnRealityCheatEvent.AddUniqueDynamic(this, &UDeveloperModeComponent::HandleFocusedRealityCheatEvent);
 		UE_LOG(LogReality, Log, TEXT("Developer Mode: Focus gained. %s"), *NewEditableComponent->GetEditableDebugDescription());
 		OnDeveloperFocusGained.Broadcast(NewActor);
+	}
+
+	if (UDeveloperTargetPresentationComponent* Presentation = GetOwner()->FindComponentByClass<UDeveloperTargetPresentationComponent>())
+	{
+		Presentation->SetHighlightedActor(NewActor);
 	}
 
 	RefreshDeveloperPresentation();
@@ -614,5 +635,41 @@ void UDeveloperModeComponent::HandleRealitySuspicionChanged(const float OldValue
 
 void UDeveloperModeComponent::HandleRealityStateChanged(const ERealityState OldState, const ERealityState NewState)
 {
+	RefreshDeveloperPresentation();
+}
+
+void UDeveloperModeComponent::HandleFocusedRealityCheatEvent(const FRealityCheatEvent& CheatEvent)
+{
+	if (!bDeveloperModeActive
+		|| CheatEvent.TargetActor != FocusedDeveloperActor.Get()
+		|| CheatEvent.InstigatingActor != GetOwner())
+	{
+		return;
+	}
+
+	OperationFeedback = CheatEvent.Operation == ERealityCheatOperation::Apply
+		? EDeveloperOperationFeedback::Applied
+		: EDeveloperOperationFeedback::Restored;
+	OperationFeedbackTag = CheatEvent.CheatTag;
+	++OperationFeedbackSequence;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(OperationFeedbackTimer, this, &UDeveloperModeComponent::ClearOperationFeedback, 0.9f, false);
+	}
+	RefreshDeveloperPresentation();
+}
+
+void UDeveloperModeComponent::ClearOperationFeedback()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(OperationFeedbackTimer);
+	}
+	if (OperationFeedback == EDeveloperOperationFeedback::None)
+	{
+		return;
+	}
+	OperationFeedback = EDeveloperOperationFeedback::None;
+	OperationFeedbackTag = FGameplayTag();
 	RefreshDeveloperPresentation();
 }

@@ -6,6 +6,7 @@
 
 #include "Components/BoxComponent.h"
 #include "Developer/DeveloperModeComponent.h"
+#include "Developer/DeveloperTargetPresentationComponent.h"
 #include "Developer/RealityEditableComponent.h"
 #include "Developer/RealityEditableTestActor.h"
 #include "Engine/CollisionProfile.h"
@@ -231,7 +232,10 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 
 	AActor* PlayerActor = TestWorld->SpawnActor<AActor>(FVector::ZeroVector, FRotator::ZeroRotator);
 	UDeveloperModeComponent* DeveloperComponent = NewObject<UDeveloperModeComponent>(PlayerActor, TEXT("DeveloperModeComponent"));
+	UDeveloperTargetPresentationComponent* PresentationComponent = NewObject<UDeveloperTargetPresentationComponent>(PlayerActor, TEXT("DeveloperTargetPresentationComponent"));
 	PlayerActor->AddInstanceComponent(DeveloperComponent);
+	PlayerActor->AddInstanceComponent(PresentationComponent);
+	PresentationComponent->RegisterComponent();
 	DeveloperComponent->RegisterComponent();
 	DeveloperComponent->InspectionDistance = 500.0f;
 	TestFalse(TEXT("A runtime Developer Mode component starts inactive"), DeveloperComponent->IsDeveloperModeActive());
@@ -245,6 +249,11 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Time Restore does nothing while Developer Mode is inactive"), DeveloperComponent->RestoreFocusedTimeModification());
 
 	ARealityEditableTestActor* EditableActorA = SpawnEditable(TestWorld, FVector(150.0f, 0.0f, 0.0f));
+	EditableActorA->PrimitiveA->SetHiddenInGame(false);
+	EditableActorA->PrimitiveB->SetHiddenInGame(false);
+	EditableActorA->PrimitiveA->SetVisibility(true);
+	EditableActorA->PrimitiveB->SetVisibility(true);
+	EditableActorA->PrimitiveB->SetRenderCustomDepth(true);
 	DeveloperComponent->OnDeveloperFocusGained.AddDynamic(EditableActorA, &ARealityEditableTestActor::HandleDeveloperFocusGained);
 	DeveloperComponent->OnDeveloperFocusLost.AddDynamic(EditableActorA, &ARealityEditableTestActor::HandleDeveloperFocusLost);
 	EditableActorA->EditableComponent->OnRealityCheatEvent.AddDynamic(EditableActorA, &ARealityEditableTestActor::HandleRealityCheatEvent);
@@ -255,11 +264,17 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("An editable-only Actor gains developer focus"), DeveloperComponent->GetFocusedDeveloperActor(), static_cast<AActor*>(EditableActorA));
 	TestEqual(TEXT("Developer focus exposes the editable component"), DeveloperComponent->GetFocusedEditableComponent(), EditableActorA->EditableComponent.Get());
 	TestEqual(TEXT("Focus gained broadcasts exactly once"), EditableActorA->DeveloperFocusGainedCount, 1);
+	TestEqual(TEXT("Presentation follows the frozen developer target"), PresentationComponent->GetHighlightedActor(), static_cast<AActor*>(EditableActorA));
+	TestEqual(TEXT("Only the target's direct visible primitives are retained"), PresentationComponent->GetSavedPrimitiveCount(), 2);
+	TestTrue(TEXT("A previously unmarked primitive is temporarily marked"), EditableActorA->PrimitiveA->bRenderCustomDepth);
+	TestTrue(TEXT("A previously marked primitive remains marked"), EditableActorA->PrimitiveB->bRenderCustomDepth);
 
 	TestTrue(TEXT("Focused Collision prototype invokes Apply"), DeveloperComponent->ToggleFocusedCollisionModification());
 	TestTrue(TEXT("Focused Collision is now modified"), EditableActorA->EditableComponent->IsCollisionModified());
 	TestEqual(TEXT("Developer Apply emits one cheat event"), EditableActorA->CheatEventCount, 1);
 	TestEqual(TEXT("Developer Apply uses the player-side owner as instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
+	TestEqual(TEXT("Successful Apply produces Apply presentation feedback"), DeveloperComponent->GetOperationFeedback(), EDeveloperOperationFeedback::Applied);
+	const int32 CollisionApplyFeedbackSequence = DeveloperComponent->GetOperationFeedbackSequence();
 	DeveloperComponent->UpdateDeveloperFocus();
 	TestEqual(TEXT("A collision-disabled target remains inspectable through its visual bounds"), DeveloperComponent->GetFocusedDeveloperActor(), static_cast<AActor*>(EditableActorA));
 	AActor* OccludingActor = TestWorld->SpawnActor<AActor>(FVector(75.0f, 0.0f, 0.0f), FRotator::ZeroRotator);
@@ -272,6 +287,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	OccludingBox->RecreatePhysicsState();
 	DeveloperComponent->UpdateDeveloperFocus();
 	TestNull(TEXT("A nearer blocking Actor occludes a collision-disabled developer target"), DeveloperComponent->GetFocusedDeveloperActor());
+	TestFalse(TEXT("Losing focus restores a primitive that originally had CustomDepth disabled"), EditableActorA->PrimitiveA->bRenderCustomDepth);
+	TestTrue(TEXT("Losing focus preserves a primitive that originally had CustomDepth enabled"), EditableActorA->PrimitiveB->bRenderCustomDepth);
 	OccludingActor->SetActorLocation(FVector(75.0f, 200.0f, 0.0f));
 	DeveloperComponent->UpdateDeveloperFocus();
 	TestEqual(TEXT("Removing the occluder reacquires the modified target"), DeveloperComponent->GetFocusedDeveloperActor(), static_cast<AActor*>(EditableActorA));
@@ -279,7 +296,12 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Focused Collision is restored"), EditableActorA->EditableComponent->IsCollisionModified());
 	TestEqual(TEXT("Developer Restore emits one additional event"), EditableActorA->CheatEventCount, 2);
 	TestEqual(TEXT("Developer Restore retains the player instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
+	TestEqual(TEXT("Successful Restore produces distinct presentation feedback"), DeveloperComponent->GetOperationFeedback(), EDeveloperOperationFeedback::Restored);
 	TestTrue(TEXT("Focused Scale prototype invokes Apply"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
+	const int32 ScaleApplyFeedbackSequence = DeveloperComponent->GetOperationFeedbackSequence();
+	TestTrue(TEXT("A new successful operation advances the feedback sequence"), ScaleApplyFeedbackSequence > CollisionApplyFeedbackSequence);
+	TestFalse(TEXT("Repeating the same Scale preset is a safe no-op"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
+	TestEqual(TEXT("A no-op cannot create false success feedback"), DeveloperComponent->GetOperationFeedbackSequence(), ScaleApplyFeedbackSequence);
 	TestEqual(TEXT("Developer Scale Apply changes the focused Actor"), EditableActorA->GetActorScale3D(), FVector(0.5f));
 	TestEqual(TEXT("Developer Scale Apply uses the player-side owner as instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
 	TestEqual(TEXT("Developer Scale Apply uses Cheat.Scale"), EditableActorA->LastCheatEvent.CheatTag, GetScaleTag());
@@ -371,11 +393,13 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 
 	EditableActorA->Destroy();
 	TestNull(TEXT("Destroying the target clears weak developer focus"), DeveloperComponent->GetFocusedDeveloperActor());
+	TestNull(TEXT("Destroying the target clears presentation safely"), PresentationComponent->GetHighlightedActor());
 	TestEqual(TEXT("Target destruction broadcasts focus lost"), EditableActorA->DeveloperFocusLostCount, 4);
 
 	EditableActorB->SetActorLocation(FVector(160.0f, 0.0f, 0.0f));
 	DeveloperComponent->UpdateDeveloperFocus();
 	TestEqual(TEXT("Actor B can regain focus"), DeveloperComponent->GetFocusedDeveloperActor(), static_cast<AActor*>(EditableActorB));
+	const int32 FeedbackSequenceBeforeFailures = DeveloperComponent->GetOperationFeedbackSequence();
 	TestFalse(TEXT("Unsupported focused Collision fails safely"), DeveloperComponent->ToggleFocusedCollisionModification());
 	TestFalse(TEXT("Unsupported focused Scale fails safely"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
 	TestFalse(TEXT("Unsupported focused Scale Restore fails safely"), DeveloperComponent->RestoreFocusedScaleModification());
@@ -383,10 +407,12 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Unsupported focused Gravity Restore fails safely"), DeveloperComponent->RestoreFocusedGravityModification());
 	TestFalse(TEXT("Unsupported focused Time Apply fails safely"), DeveloperComponent->ApplyFocusedTimeModification(ERealityTimePreset::Half));
 	TestFalse(TEXT("Unsupported focused Time Restore fails safely"), DeveloperComponent->RestoreFocusedTimeModification());
+	TestEqual(TEXT("Failed Apply/Restore operations cannot create false feedback"), DeveloperComponent->GetOperationFeedbackSequence(), FeedbackSequenceBeforeFailures);
 
 	TestFalse(TEXT("Second mode toggle deactivates Developer Mode"), DeveloperComponent->ToggleDeveloperMode());
 	TestFalse(TEXT("Developer scanning Tick disables again"), DeveloperComponent->IsComponentTickEnabled());
 	TestNull(TEXT("Exiting Developer Mode clears focus"), DeveloperComponent->GetFocusedDeveloperActor());
+	TestNull(TEXT("Exiting Developer Mode clears presentation"), PresentationComponent->GetHighlightedActor());
 	TestFalse(TEXT("Collision invocation remains disabled after mode exit"), DeveloperComponent->ToggleFocusedCollisionModification());
 	TestFalse(TEXT("Scale invocation remains disabled after mode exit"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
 	TestFalse(TEXT("Scale Restore remains disabled after mode exit"), DeveloperComponent->RestoreFocusedScaleModification());

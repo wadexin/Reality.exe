@@ -6,6 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Developer/DeveloperModeComponent.h"
+#include "Developer/DeveloperTargetPresentationComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -51,6 +52,7 @@ ARealityCharacter::ARealityCharacter()
 
 	// Create the minimal Developer Mode shell and its isolated prototype controls.
 	DeveloperModeComponent = CreateDefaultSubobject<UDeveloperModeComponent>(TEXT("Developer Mode Component"));
+	DeveloperTargetPresentationComponent = CreateDefaultSubobject<UDeveloperTargetPresentationComponent>(TEXT("Developer Target Presentation Component"));
 	DeveloperModeAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Mode Action"));
 	DeveloperCollisionAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Collision Action"));
 	DeveloperScaleActions.Reserve(5);

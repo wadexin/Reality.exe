@@ -101,6 +101,25 @@ void UDeveloperConsoleWidget::BuildPrototypeLayout()
 	PanelSlot->SetPosition(FVector2D(32.0f, 0.0f));
 	PanelSlot->SetAutoSize(true);
 
+	USizeBox* OverlaySize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("DeveloperOverlaySize"));
+	OverlaySize->SetWidthOverride(390.0f);
+	UCanvasPanelSlot* OverlaySlot = Root->AddChildToCanvas(OverlaySize);
+	OverlaySlot->SetAnchors(FAnchors(1.0f, 0.0f));
+	OverlaySlot->SetAlignment(FVector2D(1.0f, 0.0f));
+	OverlaySlot->SetPosition(FVector2D(-32.0f, 28.0f));
+	OverlaySlot->SetAutoSize(true);
+	UBorder* OverlayBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("DeveloperOverlayBackground"));
+	OverlayBackground->SetBrushColor(FLinearColor(0.01f, 0.025f, 0.035f, 0.78f));
+	OverlayBackground->SetPadding(FMargin(14.0f, 10.0f));
+	OverlaySize->SetContent(OverlayBackground);
+	UVerticalBox* OverlayBody = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("DeveloperOverlayBody"));
+	OverlayBackground->SetContent(OverlayBody);
+	ModeOverlayText = AddLabel(OverlayBody, TEXT("[ DEVELOPER MODE ]\nTARGET  NONE\nREALITY  STABLE  |  SUSPICION 0"), 13, DeveloperConsoleStyle::Accent);
+	ModeOverlayText->SetJustification(ETextJustify::Right);
+	FeedbackText = AddLabel(OverlayBody, TEXT(""), 15, DeveloperConsoleStyle::PrimaryText);
+	FeedbackText->SetJustification(ETextJustify::Right);
+	FeedbackText->SetVisibility(ESlateVisibility::Collapsed);
+
 	UBorder* Background = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ConsoleBackground"));
 	Background->SetBrushColor(FLinearColor(0.015f, 0.025f, 0.035f, 0.94f));
 	Background->SetPadding(FMargin(22.0f));
@@ -320,6 +339,44 @@ void UDeveloperConsoleWidget::RefreshConsole()
 		}
 	}
 	RealityText->SetText(FText::FromString(RealityDisplay));
+
+	if (ModeOverlayText && IsValid(DeveloperComponent))
+	{
+		FString StateLabel = TEXT("STABLE");
+		float Suspicion = 0.0f;
+		if (const UWorld* World = GetWorld())
+		{
+			if (const URealityManagerSubsystem* Manager = World->GetSubsystem<URealityManagerSubsystem>())
+			{
+				Suspicion = Manager->GetSuspicion();
+				if (const UEnum* StateEnum = StaticEnum<ERealityState>())
+				{
+					StateLabel = StateEnum->GetDisplayNameTextByValue(static_cast<int64>(Manager->GetRealityState())).ToString().ToUpper();
+				}
+			}
+		}
+		const FString TargetLabel = IsValid(Editable) && IsValid(Editable->GetOwner())
+			? GetNameSafe(Editable->GetOwner()).ToUpper()
+			: TEXT("NONE");
+		ModeOverlayText->SetText(FText::FromString(FString::Printf(
+			TEXT("[ DEVELOPER MODE ]\nTARGET  %s\nREALITY  %s  |  SUSPICION %.0f"),
+			*TargetLabel, *StateLabel, Suspicion)));
+	}
+
+	if (FeedbackText && IsValid(DeveloperComponent))
+	{
+		const EDeveloperOperationFeedback Feedback = DeveloperComponent->GetOperationFeedback();
+		FeedbackText->SetVisibility(Feedback == EDeveloperOperationFeedback::None ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+		if (Feedback != EDeveloperOperationFeedback::None)
+		{
+			FeedbackText->SetText(FText::FromString(FString::Printf(TEXT("%s  %s"),
+				Feedback == EDeveloperOperationFeedback::Applied ? TEXT("APPLIED") : TEXT("RESTORED"),
+				*DeveloperComponent->GetOperationFeedbackTag().ToString().ToUpper())));
+			FeedbackText->SetColorAndOpacity(FSlateColor(Feedback == EDeveloperOperationFeedback::Applied
+				? DeveloperConsoleStyle::Accent
+				: FLinearColor(0.45f, 1.0f, 0.62f, 1.0f)));
+		}
+	}
 }
 
 bool UDeveloperConsoleWidget::HasEditableTarget() const

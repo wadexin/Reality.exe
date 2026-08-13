@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Developer/RealityEditableComponent.h"
+#include "RealitySystem/RealityCheatEvent.h"
 #include "RealitySystem/RealityManagerSubsystem.h"
 #include "DeveloperModeComponent.generated.h"
 
@@ -12,6 +13,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperFocusGainedSignature, AAct
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperFocusLostSignature, AActor*, LostActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperModeChangedSignature, bool, bIsActive);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FDeveloperConsoleRefreshSignature);
+
+/** Short-lived player-facing confirmation generated only by a successful Reality operation. */
+UENUM(BlueprintType)
+enum class EDeveloperOperationFeedback : uint8
+{
+	None,
+	Applied,
+	Restored
+};
 
 /**
  * Player-side shell for Developer Mode state, editable-object focus, and prototype cheat invocation.
@@ -84,6 +94,18 @@ public:
 	/** Returns the currently inspected editable component, or null. */
 	UFUNCTION(BlueprintPure, Category = "Developer Mode|Focus")
 	URealityEditableComponent* GetFocusedEditableComponent() const { return FocusedEditableComponent.Get(); }
+
+	/** Returns the active success confirmation, or None after its brief display window. */
+	UFUNCTION(BlueprintPure, Category = "Developer Mode|Presentation")
+	EDeveloperOperationFeedback GetOperationFeedback() const { return OperationFeedback; }
+
+	/** Semantic property associated with the current success confirmation. */
+	UFUNCTION(BlueprintPure, Category = "Developer Mode|Presentation")
+	FGameplayTag GetOperationFeedbackTag() const { return OperationFeedbackTag; }
+
+	/** Monotonic counter used by presentation and tests to distinguish new successful operations from no-ops. */
+	UFUNCTION(BlueprintPure, Category = "Developer Mode|Presentation")
+	int32 GetOperationFeedbackSequence() const { return OperationFeedbackSequence; }
 
 	/** Applies or restores Cheat.Collision on the focused target using this component's owner as instigator. */
 	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Collision")
@@ -168,6 +190,12 @@ private:
 	UFUNCTION()
 	void HandleRealityStateChanged(ERealityState OldState, ERealityState NewState);
 
+	/** Converts an authoritative successful editable event into presentation-only feedback. */
+	UFUNCTION()
+	void HandleFocusedRealityCheatEvent(const FRealityCheatEvent& CheatEvent);
+
+	void ClearOperationFeedback();
+
 	UPROPERTY(Transient)
 	bool bDeveloperModeActive = false;
 
@@ -176,6 +204,17 @@ private:
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<URealityEditableComponent> FocusedEditableComponent;
+
+	UPROPERTY(Transient)
+	EDeveloperOperationFeedback OperationFeedback = EDeveloperOperationFeedback::None;
+
+	UPROPERTY(Transient)
+	FGameplayTag OperationFeedbackTag;
+
+	UPROPERTY(Transient)
+	int32 OperationFeedbackSequence = 0;
+
+	FTimerHandle OperationFeedbackTimer;
 
 	/** Targets disabled through this component, retained weakly so each can be reacquired independently for Restore. */
 	UPROPERTY(Transient)

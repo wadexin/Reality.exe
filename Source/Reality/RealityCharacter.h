@@ -14,6 +14,7 @@ class UInputAction;
 class UInputMappingContext;
 class UInteractionComponent;
 class UDeveloperModeComponent;
+class UDeveloperTargetPresentationComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -41,6 +42,10 @@ class ARealityCharacter : public ACharacter
 	/** Player-side Developer Mode state, focus, and prototype cheat shell. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UDeveloperModeComponent* DeveloperModeComponent;
+
+	/** Render-only feedback for the frozen Developer Mode target. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UDeveloperTargetPresentationComponent* DeveloperTargetPresentationComponent;
 
 protected:
 
@@ -172,6 +177,9 @@ public:
 
 	/** Returns the player-owned Developer Mode component. */
 	UDeveloperModeComponent* GetDeveloperModeComponent() const { return DeveloperModeComponent; }
+
+	/** Returns the player-owned Developer Mode presentation layer. */
+	UDeveloperTargetPresentationComponent* GetDeveloperTargetPresentationComponent() const { return DeveloperTargetPresentationComponent; }
 
 	/** Returns the Enhanced Input action used to toggle Developer Mode. */
 	UInputAction* GetDeveloperModeAction() const { return DeveloperModeAction; }

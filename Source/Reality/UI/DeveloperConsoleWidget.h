@@ -139,4 +139,6 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeStateText;
 	UPROPERTY(Transient) TObjectPtr<UButton> TimeRestoreButton;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RealityText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ModeOverlayText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FeedbackText;
 };
