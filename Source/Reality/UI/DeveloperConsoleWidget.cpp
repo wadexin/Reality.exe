@@ -155,6 +155,16 @@ void UDeveloperConsoleWidget::BuildPrototypeLayout()
 	UButton* MassQuadruple = AddButton(MassSection, TEXT("4.0x")); MassQuadruple->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassQuadrupleClicked);
 	MassRestoreButton = AddButton(MassSection, TEXT("Restore Mass")); MassRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassRestoreClicked);
 
+	FrictionSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("FrictionSection"));
+	Body->AddChildToVerticalBox(FrictionSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
+	AddLabel(FrictionSection, TEXT("FRICTION"), 18, DeveloperConsoleStyle::Accent);
+	FrictionStateText = AddLabel(FrictionSection, TEXT("Modified: No\nPreset: Normal"), 14, DeveloperConsoleStyle::PrimaryText);
+	UButton* FrictionZero = AddButton(FrictionSection, TEXT("Zero")); FrictionZero->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionZeroClicked);
+	UButton* FrictionLow = AddButton(FrictionSection, TEXT("Low")); FrictionLow->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionLowClicked);
+	UButton* FrictionNormal = AddButton(FrictionSection, TEXT("Normal")); FrictionNormal->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionNormalClicked);
+	UButton* FrictionHigh = AddButton(FrictionSection, TEXT("High")); FrictionHigh->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionHighClicked);
+	FrictionRestoreButton = AddButton(FrictionSection, TEXT("Restore Friction")); FrictionRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionRestoreClicked);
+
 	RealityText = AddLabel(Body, TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable"), 14, DeveloperConsoleStyle::PrimaryText);
 	if (UVerticalBoxSlot* RealitySlot = Cast<UVerticalBoxSlot>(RealityText->Slot))
 	{
@@ -201,6 +211,7 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	const FGameplayTag ScaleTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"));
 	const FGameplayTag GravityTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"));
 	const FGameplayTag MassTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Mass"));
+	const FGameplayTag FrictionTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Friction"));
 
 	if (IsValid(Editable) && IsValid(Editable->GetOwner()))
 	{
@@ -218,10 +229,12 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	const bool bScaleSupported = IsValid(Editable) && Editable->SupportsCheat(ScaleTag);
 	const bool bGravitySupported = IsValid(Editable) && Editable->SupportsCheat(GravityTag);
 	const bool bMassSupported = IsValid(Editable) && Editable->SupportsCheat(MassTag);
+	const bool bFrictionSupported = IsValid(Editable) && Editable->SupportsCheat(FrictionTag);
 	CollisionSection->SetVisibility(bCollisionSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	ScaleSection->SetVisibility(bScaleSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	GravitySection->SetVisibility(bGravitySupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	MassSection->SetVisibility(bMassSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	FrictionSection->SetVisibility(bFrictionSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 
 	if (bCollisionSupported)
 	{
@@ -255,6 +268,15 @@ void UDeveloperConsoleWidget::RefreshConsole()
 			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentMassPreset())).ToString() : TEXT("Unknown"),
 			Editable->GetEligibleMassComponentCount(), Editable->GetBaselineEffectiveMassKg(), Editable->GetCurrentEffectiveMassKg())));
 		MassRestoreButton->SetVisibility(Editable->IsMassModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (bFrictionSupported)
+	{
+		const UEnum* PresetEnum = StaticEnum<ERealityFrictionPreset>();
+		FrictionStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBodies: %d\nBaseline Friction: %.3f\nCurrent Friction: %.3f"),
+			Editable->IsFrictionModified() ? TEXT("Yes") : TEXT("No"),
+			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentFrictionPreset())).ToString() : TEXT("Unknown"),
+			Editable->GetEligibleFrictionComponentCount(), Editable->GetBaselineFriction(), Editable->GetCurrentFriction())));
+		FrictionRestoreButton->SetVisibility(Editable->IsFrictionModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
 	FString RealityDisplay = TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable");
@@ -332,6 +354,18 @@ bool UDeveloperConsoleWidget::ExecuteMassRestore()
 	return IsValid(Component) && Component->RestoreFocusedMassModification();
 }
 
+bool UDeveloperConsoleWidget::ExecuteFrictionPreset(const ERealityFrictionPreset Preset)
+{
+	UDeveloperModeComponent* Component = DeveloperModeComponent.Get();
+	return IsValid(Component) && Component->ApplyFocusedFrictionModification(Preset);
+}
+
+bool UDeveloperConsoleWidget::ExecuteFrictionRestore()
+{
+	UDeveloperModeComponent* Component = DeveloperModeComponent.Get();
+	return IsValid(Component) && Component->RestoreFocusedFrictionModification();
+}
+
 void UDeveloperConsoleWidget::HandleRefreshRequested() { RefreshConsole(); }
 void UDeveloperConsoleWidget::HandleCollisionClicked() { ExecuteCollisionToggle(); }
 void UDeveloperConsoleWidget::HandleScaleQuarterClicked() { ExecuteScalePreset(ERealityScalePreset::Quarter); }
@@ -350,3 +384,8 @@ void UDeveloperConsoleWidget::HandleMassOneClicked() { ExecuteMassPreset(ERealit
 void UDeveloperConsoleWidget::HandleMassDoubleClicked() { ExecuteMassPreset(ERealityMassPreset::Double); }
 void UDeveloperConsoleWidget::HandleMassQuadrupleClicked() { ExecuteMassPreset(ERealityMassPreset::Quadruple); }
 void UDeveloperConsoleWidget::HandleMassRestoreClicked() { ExecuteMassRestore(); }
+void UDeveloperConsoleWidget::HandleFrictionZeroClicked() { ExecuteFrictionPreset(ERealityFrictionPreset::Zero); }
+void UDeveloperConsoleWidget::HandleFrictionLowClicked() { ExecuteFrictionPreset(ERealityFrictionPreset::Low); }
+void UDeveloperConsoleWidget::HandleFrictionNormalClicked() { ExecuteFrictionPreset(ERealityFrictionPreset::Normal); }
+void UDeveloperConsoleWidget::HandleFrictionHighClicked() { ExecuteFrictionPreset(ERealityFrictionPreset::High); }
+void UDeveloperConsoleWidget::HandleFrictionRestoreClicked() { ExecuteFrictionRestore(); }

@@ -10,6 +10,7 @@
 #include "RealityEditableComponent.generated.h"
 
 class UPrimitiveComponent;
+class UPhysicalMaterial;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRealityCheatEventSignature, const FRealityCheatEvent&, CheatEvent);
 
@@ -42,6 +43,16 @@ enum class ERealityMassPreset : uint8
 	One UMETA(DisplayName = "1.0x"),
 	Double UMETA(DisplayName = "2.0x"),
 	Quadruple UMETA(DisplayName = "4.0x")
+};
+
+/** Controlled contact-friction states available to the Friction Reality modification. */
+UENUM(BlueprintType)
+enum class ERealityFrictionPreset : uint8
+{
+	Zero,
+	Low,
+	Normal,
+	High
 };
 
 /** Exact collision state captured for one owner-local primitive during an active modification cycle. */
@@ -97,6 +108,31 @@ struct FRealityOriginalMassState
 	float OriginalMassScale = 1.0f;
 	float OriginalMassOverrideKg = 100.0f;
 	bool bOriginallyOverrodeMass = false;
+};
+
+/** Original component material path and per-cycle effective friction baseline. */
+USTRUCT()
+struct FRealityOriginalFrictionState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TWeakObjectPtr<UPrimitiveComponent> PrimitiveComponent;
+
+	/** Exact component override reference; null means the component inherited its legitimate material. */
+	UPROPERTY()
+	TObjectPtr<UPhysicalMaterial> OriginalPhysMaterialOverride = nullptr;
+
+	/** Effective source material captured at cycle start and duplicated for private runtime presets. */
+	UPROPERTY()
+	TObjectPtr<UPhysicalMaterial> BaselinePhysMaterial = nullptr;
+
+	/** Unique transient material currently assigned only to this component for a non-Normal preset. */
+	UPROPERTY()
+	TObjectPtr<UPhysicalMaterial> RuntimePhysMaterial = nullptr;
+
+	float BaselineDynamicFriction = 0.0f;
+	float BaselineStaticFriction = 0.0f;
 };
 
 /**
@@ -211,6 +247,34 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Mass")
 	float GetCurrentEffectiveMassKg() const;
 
+	/** Applies a controlled contact-friction preset to directly owned simulated primitives. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Friction")
+	bool ApplyFrictionModification(ERealityFrictionPreset Preset, AActor* InstigatingActor);
+
+	/** Restores each surviving primitive's exact original Physical Material override reference. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Friction")
+	bool RestoreFrictionModification(AActor* InstigatingActor);
+
+	/** Returns whether an explicit Friction cycle is active, including active Normal. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Friction")
+	bool IsFrictionModified() const { return bFrictionModified; }
+
+	/** Returns the active Friction preset, or Normal while unmodified. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Friction")
+	ERealityFrictionPreset GetCurrentFrictionPreset() const { return CurrentFrictionPreset; }
+
+	/** Counts directly owned primitives eligible for Friction under current Collision state. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Friction")
+	int32 GetEligibleFrictionComponentCount() const;
+
+	/** Returns the average captured dynamic-friction baseline, or current eligible average while inactive. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Friction")
+	float GetBaselineFriction() const;
+
+	/** Returns the deterministic average dynamic friction represented by the active preset/current state. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Friction")
+	float GetCurrentFriction() const;
+
 	/** Returns a concise description of the owner and its configured tags for development inspection. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Debug")
 	FString GetEditableDebugDescription() const;
@@ -234,6 +298,9 @@ private:
 
 	/** Reasserts active temporary mass overrides after Chaos geometry mass recalculation. Emits no event. */
 	void ReapplyActiveMassPreset();
+
+	/** Reassigns active component-local runtime materials after body recreation without emitting an event. */
+	void ReapplyActiveFrictionPreset();
 
 	/** Cheat properties this actor supports. Configure these on the component's Blueprint or instance defaults. */
 	UPROPERTY(EditAnywhere, Category = "Reality|Editable", meta = (Categories = "Cheat"))
@@ -279,4 +346,14 @@ private:
 
 	UPROPERTY(Transient)
 	bool bMassModified = false;
+
+	/** Per-component original material paths and unique runtime materials for one Friction cycle. */
+	UPROPERTY(Transient)
+	TArray<FRealityOriginalFrictionState> OriginalFrictionStates;
+
+	UPROPERTY(Transient)
+	ERealityFrictionPreset CurrentFrictionPreset = ERealityFrictionPreset::Normal;
+
+	UPROPERTY(Transient)
+	bool bFrictionModified = false;
 };

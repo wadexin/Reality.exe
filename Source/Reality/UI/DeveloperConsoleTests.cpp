@@ -25,6 +25,7 @@ bool FDeveloperConsoleWidgetTest::RunTest(const FString& Parameters)
 	const FGameplayTag ScaleTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"));
 	const FGameplayTag GravityTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"));
 	const FGameplayTag MassTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Mass"));
+	const FGameplayTag FrictionTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Friction"));
 
 	const FName WorldName = MakeUniqueObjectName(nullptr, UWorld::StaticClass(), NAME_None, EUniqueObjectNameOptions::GloballyUnique);
 	FWorldContext& WorldContext = GEngine->CreateNewWorldContext(EWorldType::Game);
@@ -57,6 +58,7 @@ bool FDeveloperConsoleWidgetTest::RunTest(const FString& Parameters)
 	Capabilities.AddTag(ScaleTag);
 	Capabilities.AddTag(GravityTag);
 	Capabilities.AddTag(MassTag);
+	Capabilities.AddTag(FrictionTag);
 	Target->EditableComponent->SetSupportedCheats(Capabilities);
 	Target->PrimitiveA->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 	Target->PrimitiveA->SetSimulatePhysics(true);
@@ -69,6 +71,7 @@ bool FDeveloperConsoleWidgetTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Scale capability drives section availability"), Widget->IsCheatSectionAvailable(ScaleTag));
 	TestTrue(TEXT("Gravity capability drives section availability"), Widget->IsCheatSectionAvailable(GravityTag));
 	TestTrue(TEXT("Mass capability drives section availability"), Widget->IsCheatSectionAvailable(MassTag));
+	TestTrue(TEXT("Friction capability drives section availability"), Widget->IsCheatSectionAvailable(FrictionTag));
 
 	TestTrue(TEXT("Console Collision action invokes existing implementation"), Widget->ExecuteCollisionToggle());
 	TestTrue(TEXT("Collision is modified once"), Target->EditableComponent->IsCollisionModified());
@@ -89,6 +92,10 @@ bool FDeveloperConsoleWidgetTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Console Mass reaches existing implementation"), Target->EditableComponent->IsMassModified());
 	TestTrue(TEXT("Console Mass restore succeeds"), Widget->ExecuteMassRestore());
 	TestFalse(TEXT("Mass cycle ends"), Target->EditableComponent->IsMassModified());
+	TestTrue(TEXT("Console typed Friction preset succeeds"), Widget->ExecuteFrictionPreset(ERealityFrictionPreset::Low));
+	TestTrue(TEXT("Console Friction reaches existing implementation"), Target->EditableComponent->IsFrictionModified());
+	TestTrue(TEXT("Console Friction restore succeeds"), Widget->ExecuteFrictionRestore());
+	TestFalse(TEXT("Friction cycle ends"), Target->EditableComponent->IsFrictionModified());
 
 	URealityManagerSubsystem* Manager = TestWorld->GetSubsystem<URealityManagerSubsystem>();
 	TestNotNull(TEXT("Console actions retain Reality Manager integration"), Manager);

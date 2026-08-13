@@ -117,6 +117,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Mass")
 	bool RestoreFocusedMassModification();
 
+	/** Applies a typed Friction preset to the selected target. Friction intentionally has no fallback hotkey. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Friction")
+	bool ApplyFocusedFrictionModification(ERealityFrictionPreset Preset);
+
+	/** Restores the selected target's exact captured Physical Material configuration. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Friction")
+	bool RestoreFocusedFrictionModification();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

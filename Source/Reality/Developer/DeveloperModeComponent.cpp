@@ -326,6 +326,29 @@ bool UDeveloperModeComponent::RestoreFocusedMassModification()
 	return bSucceeded;
 }
 
+bool UDeveloperModeComponent::ApplyFocusedFrictionModification(const ERealityFrictionPreset Preset)
+{
+	if (!bDeveloperModeActive) return false;
+	URealityEditableComponent* Editable = FocusedEditableComponent.Get();
+	AActor* Instigator = GetOwner();
+	const FGameplayTag FrictionTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Friction"));
+	if (!IsValid(Editable) || !IsValid(Instigator) || !Editable->SupportsCheat(FrictionTag)) return false;
+	const bool bSucceeded = Editable->ApplyFrictionModification(Preset, Instigator);
+	if (bSucceeded) RefreshDeveloperPresentation();
+	return bSucceeded;
+}
+
+bool UDeveloperModeComponent::RestoreFocusedFrictionModification()
+{
+	if (!bDeveloperModeActive) return false;
+	URealityEditableComponent* Editable = FocusedEditableComponent.Get();
+	AActor* Instigator = GetOwner();
+	if (!IsValid(Editable) || !IsValid(Instigator)) return false;
+	const bool bSucceeded = Editable->RestoreFrictionModification(Instigator);
+	if (bSucceeded) RefreshDeveloperPresentation();
+	return bSucceeded;
+}
+
 void UDeveloperModeComponent::SetFocusedEditableComponent(URealityEditableComponent* NewEditableComponent)
 {
 	AActor* NewActor = IsValid(NewEditableComponent) ? NewEditableComponent->GetOwner() : nullptr;

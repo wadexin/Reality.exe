@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "NativeGameplayTags.h"
 #include "PhysicsEngine/BodyInstance.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Reality.h"
 #include "RealitySystem/RealityManagerSubsystem.h"
 
@@ -13,6 +14,7 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Collision, "Cheat.Collision");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Scale, "Cheat.Scale");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Gravity, "Cheat.Gravity");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Mass, "Cheat.Mass");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Friction, "Cheat.Friction");
 
 namespace RealityScale
 {
@@ -95,6 +97,33 @@ namespace RealityMass
 	{
 		float Multiplier = 0.0f;
 		return TryGetMultiplier(Preset, Multiplier) ? FString::Printf(TEXT("%gx"), Multiplier) : TEXT("Invalid");
+	}
+}
+
+namespace RealityFriction
+{
+	bool TryGetMultiplier(const ERealityFrictionPreset Preset, float& OutMultiplier)
+	{
+		switch (Preset)
+		{
+		case ERealityFrictionPreset::Zero: OutMultiplier = 0.0f; return true;
+		case ERealityFrictionPreset::Low: OutMultiplier = 0.25f; return true;
+		case ERealityFrictionPreset::Normal: OutMultiplier = 1.0f; return true;
+		case ERealityFrictionPreset::High: OutMultiplier = 4.0f; return true;
+		default: return false;
+		}
+	}
+
+	const TCHAR* GetPresetLabel(const ERealityFrictionPreset Preset)
+	{
+		switch (Preset)
+		{
+		case ERealityFrictionPreset::Zero: return TEXT("Zero");
+		case ERealityFrictionPreset::Low: return TEXT("Low");
+		case ERealityFrictionPreset::Normal: return TEXT("Normal");
+		case ERealityFrictionPreset::High: return TEXT("High");
+		default: return TEXT("Invalid");
+		}
 	}
 }
 
@@ -250,6 +279,7 @@ bool URealityEditableComponent::RestoreCollisionModification(AActor* Instigating
 		}
 	}
 	ReapplyActiveMassPreset();
+	ReapplyActiveFrictionPreset();
 
 	OriginalCollisionStates.Reset();
 	bCollisionModified = false;
@@ -316,6 +346,7 @@ bool URealityEditableComponent::ApplyScaleModification(const ERealityScalePreset
 
 	Owner->SetActorScale3D(NewScale);
 	ReapplyActiveMassPreset();
+	ReapplyActiveFrictionPreset();
 	CurrentScalePreset = Preset;
 	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Scale, InstigatingActor, ERealityCheatOperation::Apply);
 	EmitRealityCheatEvent(CheatEvent);
@@ -353,6 +384,7 @@ bool URealityEditableComponent::RestoreScaleModification(AActor* InstigatingActo
 
 	Owner->SetActorScale3D(OriginalScale);
 	ReapplyActiveMassPreset();
+	ReapplyActiveFrictionPreset();
 	const FVector RestoredScale = OriginalScale;
 	bScaleModified = false;
 	CurrentScalePreset = ERealityScalePreset::One;
@@ -726,6 +758,218 @@ float URealityEditableComponent::GetCurrentEffectiveMassKg() const
 	return Total;
 }
 
+bool URealityEditableComponent::ApplyFrictionModification(const ERealityFrictionPreset Preset, AActor* InstigatingActor)
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !SupportsCheat(TAG_Reality_Cheat_Friction))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Friction: Apply rejected for '%s': invalid owner or unsupported Cheat.Friction."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	float Multiplier = 0.0f;
+	if (!RealityFriction::TryGetMultiplier(Preset, Multiplier))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Friction: Apply rejected for '%s' because preset value %d is invalid."), *GetNameSafe(Owner), static_cast<uint8>(Preset));
+		return false;
+	}
+	if (bFrictionModified && CurrentFrictionPreset == Preset)
+	{
+		return false;
+	}
+
+	if (!bFrictionModified)
+	{
+		if (Preset == ERealityFrictionPreset::Normal)
+		{
+			return false;
+		}
+
+		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+		Owner->GetComponents(PrimitiveComponents, false);
+		OriginalFrictionStates.Reset(PrimitiveComponents.Num());
+		for (UPrimitiveComponent* Primitive : PrimitiveComponents)
+		{
+			FBodyInstance* BodyInstance = IsValid(Primitive) ? Primitive->GetBodyInstance() : nullptr;
+			if (Primitive && Primitive->GetOwner() == Owner && Primitive->IsAnySimulatingPhysics() && BodyInstance)
+			{
+				UPhysicalMaterial* EffectiveMaterial = BodyInstance->GetSimplePhysicalMaterial();
+				if (IsValid(EffectiveMaterial))
+				{
+					FRealityOriginalFrictionState& State = OriginalFrictionStates.AddDefaulted_GetRef();
+					State.PrimitiveComponent = Primitive;
+					State.OriginalPhysMaterialOverride = BodyInstance->GetPhysMaterialOverride();
+					State.BaselinePhysMaterial = EffectiveMaterial;
+					State.BaselineDynamicFriction = FMath::Max(0.0f, EffectiveMaterial->Friction);
+					State.BaselineStaticFriction = FMath::Max(0.0f, EffectiveMaterial->StaticFriction);
+				}
+			}
+		}
+		if (OriginalFrictionStates.IsEmpty())
+		{
+			UE_LOG(LogReality, Warning, TEXT("Reality Friction: Apply failed for '%s' because it has no directly owned simulated PrimitiveComponents with a valid Physical Material."), *GetNameSafe(Owner));
+			return false;
+		}
+		bFrictionModified = true;
+	}
+
+	CurrentFrictionPreset = Preset;
+	ReapplyActiveFrictionPreset();
+	if (!bFrictionModified)
+	{
+		return false;
+	}
+
+	EmitRealityCheatEvent(FRealityCheatEvent(Owner, TAG_Reality_Cheat_Friction, InstigatingActor, ERealityCheatOperation::Apply));
+	UE_LOG(LogReality, Log, TEXT("Reality Friction: Set '%s' to %s across %d component(s). Baseline=%.3f Current=%.3f."),
+		*GetNameSafe(Owner), RealityFriction::GetPresetLabel(Preset), OriginalFrictionStates.Num(), GetBaselineFriction(), GetCurrentFriction());
+	return true;
+}
+
+bool URealityEditableComponent::RestoreFrictionModification(AActor* InstigatingActor)
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !bFrictionModified)
+	{
+		return false;
+	}
+
+	int32 RestoredCount = 0;
+	for (FRealityOriginalFrictionState& State : OriginalFrictionStates)
+	{
+		UPrimitiveComponent* Primitive = State.PrimitiveComponent.Get();
+		if (IsValid(Primitive) && Primitive->GetOwner() == Owner)
+		{
+			Primitive->SetPhysMaterialOverride(State.OriginalPhysMaterialOverride);
+			State.RuntimePhysMaterial = nullptr;
+			++RestoredCount;
+		}
+	}
+
+	OriginalFrictionStates.Reset();
+	bFrictionModified = false;
+	CurrentFrictionPreset = ERealityFrictionPreset::Normal;
+	ReapplyActiveMassPreset();
+	if (RestoredCount == 0)
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Friction: Restore for '%s' found no surviving components; state cleared without an event."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	EmitRealityCheatEvent(FRealityCheatEvent(Owner, TAG_Reality_Cheat_Friction, InstigatingActor, ERealityCheatOperation::Restore));
+	UE_LOG(LogReality, Log, TEXT("Reality Friction: Restored exact Physical Material override configuration for '%s' on %d component(s)."), *GetNameSafe(Owner), RestoredCount);
+	return true;
+}
+
+void URealityEditableComponent::ReapplyActiveFrictionPreset()
+{
+	if (!bFrictionModified)
+	{
+		return;
+	}
+
+	float Multiplier = 0.0f;
+	if (!RealityFriction::TryGetMultiplier(CurrentFrictionPreset, Multiplier))
+	{
+		return;
+	}
+	AActor* Owner = GetOwner();
+	for (int32 Index = OriginalFrictionStates.Num() - 1; Index >= 0; --Index)
+	{
+		FRealityOriginalFrictionState& State = OriginalFrictionStates[Index];
+		UPrimitiveComponent* Primitive = State.PrimitiveComponent.Get();
+		if (!IsValid(Primitive) || Primitive->GetOwner() != Owner)
+		{
+			OriginalFrictionStates.RemoveAtSwap(Index);
+			continue;
+		}
+
+		if (CurrentFrictionPreset == ERealityFrictionPreset::Normal)
+		{
+			Primitive->SetPhysMaterialOverride(State.OriginalPhysMaterialOverride);
+			State.RuntimePhysMaterial = nullptr;
+			continue;
+		}
+
+		UPhysicalMaterial* SourceMaterial = State.BaselinePhysMaterial;
+		if (!IsValid(SourceMaterial))
+		{
+			OriginalFrictionStates.RemoveAtSwap(Index);
+			continue;
+		}
+
+		UPhysicalMaterial* RuntimeMaterial = DuplicateObject<UPhysicalMaterial>(SourceMaterial, this);
+		if (!IsValid(RuntimeMaterial))
+		{
+			OriginalFrictionStates.RemoveAtSwap(Index);
+			continue;
+		}
+		RuntimeMaterial->SetFlags(RF_Transient);
+		RuntimeMaterial->Friction = State.BaselineDynamicFriction * Multiplier;
+		RuntimeMaterial->StaticFriction = State.BaselineStaticFriction * Multiplier;
+		State.RuntimePhysMaterial = RuntimeMaterial;
+		Primitive->SetPhysMaterialOverride(RuntimeMaterial);
+	}
+
+	if (OriginalFrictionStates.IsEmpty())
+	{
+		bFrictionModified = false;
+		CurrentFrictionPreset = ERealityFrictionPreset::Normal;
+	}
+	ReapplyActiveMassPreset();
+}
+
+int32 URealityEditableComponent::GetEligibleFrictionComponentCount() const
+{
+	const AActor* Owner = GetOwner();
+	if (!IsValid(Owner)) return 0;
+	TInlineComponentArray<UPrimitiveComponent*> Components;
+	Owner->GetComponents(Components, false);
+	int32 Count = 0;
+	for (const UPrimitiveComponent* Primitive : Components)
+	{
+		const FBodyInstance* BodyInstance = IsValid(Primitive) ? Primitive->GetBodyInstance() : nullptr;
+		if (Primitive && Primitive->GetOwner() == Owner && Primitive->IsAnySimulatingPhysics() && BodyInstance && BodyInstance->GetSimplePhysicalMaterial()) ++Count;
+	}
+	return Count;
+}
+
+float URealityEditableComponent::GetBaselineFriction() const
+{
+	if (!bFrictionModified)
+	{
+		const AActor* Owner = GetOwner();
+		if (!IsValid(Owner)) return 0.0f;
+		TInlineComponentArray<UPrimitiveComponent*> Components;
+		Owner->GetComponents(Components, false);
+		float Total = 0.0f;
+		int32 Count = 0;
+		for (const UPrimitiveComponent* Primitive : Components)
+		{
+			const FBodyInstance* Body = IsValid(Primitive) ? Primitive->GetBodyInstance() : nullptr;
+			if (Primitive && Primitive->GetOwner() == Owner && Primitive->IsAnySimulatingPhysics() && Body)
+			{
+				if (const UPhysicalMaterial* Material = Body->GetSimplePhysicalMaterial()) { Total += Material->Friction; ++Count; }
+			}
+		}
+		return Count > 0 ? Total / Count : 0.0f;
+	}
+	float Total = 0.0f;
+	int32 Count = 0;
+	for (const FRealityOriginalFrictionState& State : OriginalFrictionStates)
+	{
+		if (State.PrimitiveComponent.IsValid()) { Total += State.BaselineDynamicFriction; ++Count; }
+	}
+	return Count > 0 ? Total / Count : 0.0f;
+}
+
+float URealityEditableComponent::GetCurrentFriction() const
+{
+	float Multiplier = 1.0f;
+	if (bFrictionModified && RealityFriction::TryGetMultiplier(CurrentFrictionPreset, Multiplier)) return GetBaselineFriction() * Multiplier;
+	return GetBaselineFriction();
+}
+
 void URealityEditableComponent::EmitRealityCheatEvent(const FRealityCheatEvent& CheatEvent)
 {
 	if (UWorld* World = GetWorld())
@@ -749,7 +993,7 @@ void URealityEditableComponent::EmitRealityCheatEvent(const FRealityCheatEvent& 
 FString URealityEditableComponent::GetEditableDebugDescription() const
 {
 	return FString::Printf(
-		TEXT("Actor='%s' SupportedCheats=[%s] ObjectTags=[%s] CollisionModified=%s ScaleModified=%s ScalePreset=%s OriginalScale=%s CurrentScale=%s GravityModified=%s GravityPreset=%s EligibleGravityComponents=%d MassModified=%s MassPreset=%s BaselineMass=%.3fkg CurrentMass=%.3fkg EligibleMassComponents=%d"),
+		TEXT("Actor='%s' SupportedCheats=[%s] ObjectTags=[%s] CollisionModified=%s ScaleModified=%s ScalePreset=%s OriginalScale=%s CurrentScale=%s GravityModified=%s GravityPreset=%s EligibleGravityComponents=%d MassModified=%s MassPreset=%s BaselineMass=%.3fkg CurrentMass=%.3fkg EligibleMassComponents=%d FrictionModified=%s FrictionPreset=%s BaselineFriction=%.3f CurrentFriction=%.3f EligibleFrictionComponents=%d"),
 		*GetNameSafe(GetOwner()),
 		*SupportedCheats.ToStringSimple(),
 		*ObjectTags.ToStringSimple(),
@@ -765,7 +1009,12 @@ FString URealityEditableComponent::GetEditableDebugDescription() const
 		*RealityMass::GetPresetLabel(CurrentMassPreset),
 		GetBaselineEffectiveMassKg(),
 		GetCurrentEffectiveMassKg(),
-		GetEligibleMassComponentCount());
+		GetEligibleMassComponentCount(),
+		bFrictionModified ? TEXT("true") : TEXT("false"),
+		RealityFriction::GetPresetLabel(CurrentFrictionPreset),
+		GetBaselineFriction(),
+		GetCurrentFriction(),
+		GetEligibleFrictionComponentCount());
 }
 
 void URealityEditableComponent::LogEditableConfiguration() const

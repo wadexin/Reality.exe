@@ -61,6 +61,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
 	bool ExecuteMassRestore();
 
+	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
+	bool ExecuteFrictionPreset(ERealityFrictionPreset Preset);
+
+	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
+	bool ExecuteFrictionRestore();
+
 protected:
 	virtual bool Initialize() override;
 	virtual void NativeDestruct() override;
@@ -90,6 +96,11 @@ private:
 	UFUNCTION() void HandleMassDoubleClicked();
 	UFUNCTION() void HandleMassQuadrupleClicked();
 	UFUNCTION() void HandleMassRestoreClicked();
+	UFUNCTION() void HandleFrictionZeroClicked();
+	UFUNCTION() void HandleFrictionLowClicked();
+	UFUNCTION() void HandleFrictionNormalClicked();
+	UFUNCTION() void HandleFrictionHighClicked();
+	UFUNCTION() void HandleFrictionRestoreClicked();
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UDeveloperModeComponent> DeveloperModeComponent;
@@ -109,5 +120,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> MassSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> MassStateText;
 	UPROPERTY(Transient) TObjectPtr<UButton> MassRestoreButton;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> FrictionSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> FrictionStateText;
+	UPROPERTY(Transient) TObjectPtr<UButton> FrictionRestoreButton;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RealityText;
 };

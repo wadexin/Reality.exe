@@ -8,6 +8,7 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Collision, "Cheat.Collision")
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Scale, "Cheat.Scale");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Gravity, "Cheat.Gravity");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Mass, "Cheat.Mass");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Friction, "Cheat.Friction");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Witness_Human, "Witness.Human");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Witness_Camera, "Witness.Camera");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Context_Explosion, "Context.Explosion");
@@ -20,7 +21,8 @@ URealitySuspicionSettings::URealitySuspicionSettings()
 		FRealityCheatSuspicionRule(TAG_Reality_Settings_Collision, 25.0f),
 		FRealityCheatSuspicionRule(TAG_Reality_Settings_Scale, 20.0f),
 		FRealityCheatSuspicionRule(TAG_Reality_Settings_Gravity, 15.0f),
-		FRealityCheatSuspicionRule(TAG_Reality_Settings_Mass, 10.0f)
+		FRealityCheatSuspicionRule(TAG_Reality_Settings_Mass, 10.0f),
+		FRealityCheatSuspicionRule(TAG_Reality_Settings_Friction, 10.0f)
 	};
 	WitnessSuspicionRules = {
 		FRealityWitnessSuspicionRule(TAG_Reality_Settings_Witness_Human, 10.0f),

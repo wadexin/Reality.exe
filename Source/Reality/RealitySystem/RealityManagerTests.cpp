@@ -77,14 +77,17 @@ bool FRealityManagerSubsystemTest::RunTest(const FString& Parameters)
 	float ScaleValue = 0.0f;
 	float GravityValue = 0.0f;
 	float MassValue = 0.0f;
+	float FrictionValue = 0.0f;
 	TestTrue(TEXT("Collision has a configured rule"), Settings->FindBaseSuspicion(Tag(TEXT("Cheat.Collision")), CollisionValue));
 	TestTrue(TEXT("Scale has a configured rule"), Settings->FindBaseSuspicion(Tag(TEXT("Cheat.Scale")), ScaleValue));
 	TestTrue(TEXT("Gravity has a configured rule"), Settings->FindBaseSuspicion(Tag(TEXT("Cheat.Gravity")), GravityValue));
 	TestTrue(TEXT("Mass has a configured rule"), Settings->FindBaseSuspicion(Tag(TEXT("Cheat.Mass")), MassValue));
+	TestTrue(TEXT("Friction has a configured rule"), Settings->FindBaseSuspicion(Tag(TEXT("Cheat.Friction")), FrictionValue));
 	TestEqual(TEXT("Collision prototype tuning is 25"), CollisionValue, 25.0f);
 	TestEqual(TEXT("Scale prototype tuning is 20"), ScaleValue, 20.0f);
 	TestEqual(TEXT("Gravity prototype tuning is 15"), GravityValue, 15.0f);
 	TestEqual(TEXT("Mass prototype tuning is 10"), MassValue, 10.0f);
+	TestEqual(TEXT("Friction prototype tuning is 10"), FrictionValue, 10.0f);
 	TestEqual(TEXT("Restore prototype reduction is 5"), Settings->RestoreSuspicionReduction, 5.0f);
 
 	ARealityEditableTestActor* DelegateRecorder = TestWorld->SpawnActor<ARealityEditableTestActor>();
@@ -136,7 +139,7 @@ bool FRealityManagerSubsystemTest::RunTest(const FString& Parameters)
 
 	const float BeforeUnknown = Manager->GetSuspicion();
 	const int32 HistoryBeforeUnknown = Manager->GetEventHistory().Num();
-	TestFalse(TEXT("A known but untuned Cheat tag is rejected"), Manager->ProcessCheatEvent(Event(DelegateRecorder, TEXT("Cheat.Friction"))));
+	TestFalse(TEXT("A known but untuned Cheat tag is rejected"), Manager->ProcessCheatEvent(Event(DelegateRecorder, TEXT("Cheat.Time"))));
 	TestEqual(TEXT("Unknown tuning does not change Suspicion"), Manager->GetSuspicion(), BeforeUnknown);
 	TestEqual(TEXT("Unknown tuning does not add history"), Manager->GetEventHistory().Num(), HistoryBeforeUnknown);
 
