@@ -10,6 +10,7 @@ class UInputMappingContext;
 class UDeveloperConsoleWidget;
 class UDeveloperModeComponent;
 class UUserWidget;
+class UDemoSystemMenuWidget;
 
 /**
  *  Simple first person Player Controller
@@ -33,6 +34,17 @@ public:
 	/** Hides the console and restores normal first-person input without pausing the world. */
 	UFUNCTION(BlueprintCallable, Category = "Developer Console")
 	void HideDeveloperConsole();
+
+	/** Opens the compact in-session menu, first closing Developer Mode so modal UIs cannot overlap. */
+	UFUNCTION(BlueprintCallable, Category="Demo|System Menu") void ShowSystemMenu();
+	UFUNCTION(BlueprintCallable, Category="Demo|System Menu") void HideSystemMenu();
+	UFUNCTION(BlueprintCallable, Category="Demo|System Menu") void ToggleSystemMenu();
+	UFUNCTION(BlueprintCallable, Category="Demo|System Menu") void ConfirmRestartDemo();
+	UFUNCTION(BlueprintCallable, Category="Demo|System Menu") bool RecoverPlayerPosition();
+	UFUNCTION(BlueprintPure, Category="Demo|System Menu") bool IsSystemMenuOpen() const;
+	UFUNCTION(BlueprintPure, Category="Demo|System Menu") bool IsDemoWorld() const;
+	/** UE-supported relative travel URL used for a clean current-level reload. */
+	UFUNCTION(BlueprintPure, Category="Demo|System Menu") FString GetRestartTravelURL() const { return TEXT("?restart"); }
 
 	UFUNCTION(BlueprintPure, Category = "Developer Console")
 	UDeveloperConsoleWidget* GetDeveloperConsoleWidget() const { return DeveloperConsoleWidget; }
@@ -63,6 +75,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** Input mapping context setup */
 	virtual void SetupInputComponent() override;
@@ -86,4 +99,6 @@ private:
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UDeveloperModeComponent> BoundDeveloperModeComponent;
+
+	UPROPERTY(Transient) TObjectPtr<UDemoSystemMenuWidget> SystemMenuWidget;
 };

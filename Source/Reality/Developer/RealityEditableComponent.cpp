@@ -1078,6 +1078,52 @@ float URealityEditableComponent::GetCurrentEffectiveTimeDilation() const
 	return IsValid(Owner) && FMath::IsFinite(Owner->CustomTimeDilation) ? Owner->CustomTimeDilation : 1.0f;
 }
 
+bool URealityEditableComponent::RestoreAllModificationsForRecovery()
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner)) return false;
+	const bool bHadModification = bCollisionModified || bScaleModified || bGravityModified || bMassModified || bFrictionModified || bTimeModified;
+
+	SetComponentTickEnabled(false);
+	for (const FRealityOriginalGravityState& State : OriginalGravityStates)
+	{
+		if (UPrimitiveComponent* Primitive = State.PrimitiveComponent.Get(); Primitive && Primitive->GetOwner() == Owner) Primitive->SetEnableGravity(State.bGravityEnabled);
+	}
+	OriginalGravityStates.Reset(); bGravityModified = false; CurrentGravityPreset = ERealityGravityPreset::Normal;
+
+	if (bScaleModified && !OriginalScale.ContainsNaN()) Owner->SetActorScale3D(OriginalScale);
+	bScaleModified = false; CurrentScalePreset = ERealityScalePreset::One;
+
+	for (const FRealityOriginalCollisionState& State : OriginalCollisionStates)
+	{
+		if (UPrimitiveComponent* Primitive = State.PrimitiveComponent.Get(); Primitive && Primitive->GetOwner() == Owner) Primitive->SetCollisionEnabled(State.CollisionEnabled);
+	}
+	OriginalCollisionStates.Reset(); bCollisionModified = false;
+
+	for (const FRealityOriginalMassState& State : OriginalMassStates)
+	{
+		if (UPrimitiveComponent* Primitive = State.PrimitiveComponent.Get(); Primitive && Primitive->GetOwner() == Owner)
+		{
+			Primitive->SetMassScale(NAME_None, State.OriginalMassScale);
+			Primitive->SetMassOverrideInKg(NAME_None, State.OriginalMassOverrideKg, State.bOriginallyOverrodeMass);
+		}
+	}
+	OriginalMassStates.Reset(); bMassModified = false; CurrentMassPreset = ERealityMassPreset::One;
+
+	for (FRealityOriginalFrictionState& State : OriginalFrictionStates)
+	{
+		if (UPrimitiveComponent* Primitive = State.PrimitiveComponent.Get(); Primitive && Primitive->GetOwner() == Owner) Primitive->SetPhysMaterialOverride(State.OriginalPhysMaterialOverride);
+		State.RuntimePhysMaterial = nullptr;
+	}
+	OriginalFrictionStates.Reset(); bFrictionModified = false; CurrentFrictionPreset = ERealityFrictionPreset::Normal;
+
+	if (bTimeModified && FMath::IsFinite(OriginalTimeDilation) && OriginalTimeDilation >= 0.0f) Owner->CustomTimeDilation = OriginalTimeDilation;
+	bTimeModified = false; CurrentTimePreset = ERealityTimePreset::One;
+
+	if (bHadModification) UE_LOG(LogReality, Log, TEXT("Reality recovery: Silently restored all local property cycles for '%s'."), *GetNameSafe(Owner));
+	return bHadModification;
+}
+
 void URealityEditableComponent::EmitRealityCheatEvent(const FRealityCheatEvent& CheatEvent)
 {
 	if (UWorld* World = GetWorld())

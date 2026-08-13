@@ -16,6 +16,7 @@ class UInteractionComponent;
 class UDeveloperModeComponent;
 class UDeveloperTargetPresentationComponent;
 class UDeveloperAudioFeedbackComponent;
+class UDemoPlayerRecoveryComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -51,6 +52,10 @@ class ARealityCharacter : public ACharacter
 	/** Restrained event-driven audio for Developer Mode and accepted Reality edits. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UDeveloperAudioFeedbackComponent* DeveloperAudioFeedbackComponent;
+
+	/** Latest authored safe location used by Demo out-of-bounds recovery. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UDemoPlayerRecoveryComponent* DemoPlayerRecoveryComponent;
 
 protected:
 
@@ -186,6 +191,7 @@ public:
 	/** Returns the player-owned Developer Mode presentation layer. */
 	UDeveloperTargetPresentationComponent* GetDeveloperTargetPresentationComponent() const { return DeveloperTargetPresentationComponent; }
 	UDeveloperAudioFeedbackComponent* GetDeveloperAudioFeedbackComponent() const { return DeveloperAudioFeedbackComponent; }
+	UDemoPlayerRecoveryComponent* GetDemoPlayerRecoveryComponent() const { return DemoPlayerRecoveryComponent; }
 
 	/** Returns the Enhanced Input action used to toggle Developer Mode. */
 	UInputAction* GetDeveloperModeAction() const { return DeveloperModeAction; }

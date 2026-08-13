@@ -10,6 +10,7 @@
 class URealityEditableComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
+class UDemoRecoverableComponent;
 
 /** Graybox-ready Reality target with explicit capabilities and an optional physical push interaction. */
 UCLASS(Blueprintable)
@@ -28,6 +29,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<URealityEditableComponent> EditableComponent;
+
+	/** Enabled only for authored simulated critical props; static puzzle structure is never auto-reset. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UDemoRecoverableComponent> RecoverableComponent;
 
 	/** Configures one placed Demo target without exposing string-based capability logic to the level. */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Demo|Editable")

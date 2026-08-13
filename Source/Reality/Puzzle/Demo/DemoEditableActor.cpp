@@ -8,6 +8,7 @@
 #include "Engine/CollisionProfile.h"
 #include "NativeGameplayTags.h"
 #include "Reality.h"
+#include "Puzzle/Demo/DemoRecoverableComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Demo_Collision, "Cheat.Collision");
@@ -43,6 +44,7 @@ ADemoEditableActor::ADemoEditableActor()
 	EditableMarker->SetText(NSLOCTEXT("RealityDemo", "EditableMarker", "REALITY EDITABLE"));
 
 	EditableComponent = CreateDefaultSubobject<URealityEditableComponent>(TEXT("Reality Editable Component"));
+	RecoverableComponent = CreateDefaultSubobject<UDemoRecoverableComponent>(TEXT("Demo Recoverable Component"));
 }
 
 void ADemoEditableActor::ConfigureDemoTarget(
@@ -75,6 +77,7 @@ void ADemoEditableActor::ConfigureDemoTarget(
 
 	Mesh->SetCollisionProfileName(bSimulatePhysics ? UCollisionProfile::PhysicsActor_ProfileName : UCollisionProfile::BlockAll_ProfileName);
 	Mesh->SetSimulatePhysics(bSimulatePhysics);
+	RecoverableComponent->SetRecoveryEnabled(bSimulatePhysics);
 	EditableMarker->SetText(FText::Format(
 		NSLOCTEXT("RealityDemo", "EditableTargetFormat", "REALITY EDITABLE\n{0}"),
 		DisplayName));

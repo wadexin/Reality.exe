@@ -18,6 +18,7 @@
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
 #include "RealitySystem/RealityManagerSubsystem.h"
+#include "RealityPlayerController.h"
 
 namespace DeveloperConsoleStyle
 {
@@ -81,6 +82,14 @@ FReply UDeveloperConsoleWidget::NativeOnKeyDown(const FGeometry& InGeometry, con
 		if (UDeveloperModeComponent* Component = DeveloperModeComponent.Get())
 		{
 			Component->ExitDeveloperMode();
+			return FReply::Handled();
+		}
+	}
+	if (InKeyEvent.GetKey() == EKeys::Escape)
+	{
+		if (ARealityPlayerController* Controller = Cast<ARealityPlayerController>(GetOwningPlayer()))
+		{
+			Controller->ShowSystemMenu();
 			return FReply::Handled();
 		}
 	}

@@ -18,6 +18,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Interaction/InteractionComponent.h"
 #include "Reality.h"
+#include "Puzzle/Demo/DemoPlayerRecoveryComponent.h"
 
 ARealityCharacter::ARealityCharacter()
 {
@@ -55,6 +56,7 @@ ARealityCharacter::ARealityCharacter()
 	DeveloperModeComponent = CreateDefaultSubobject<UDeveloperModeComponent>(TEXT("Developer Mode Component"));
 	DeveloperTargetPresentationComponent = CreateDefaultSubobject<UDeveloperTargetPresentationComponent>(TEXT("Developer Target Presentation Component"));
 	DeveloperAudioFeedbackComponent = CreateDefaultSubobject<UDeveloperAudioFeedbackComponent>(TEXT("Developer Audio Feedback Component"));
+	DemoPlayerRecoveryComponent = CreateDefaultSubobject<UDemoPlayerRecoveryComponent>(TEXT("Demo Player Recovery Component"));
 	DeveloperModeAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Mode Action"));
 	DeveloperCollisionAction = CreateDefaultSubobject<UInputAction>(TEXT("Developer Collision Action"));
 	DeveloperScaleActions.Reserve(5);

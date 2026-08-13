@@ -310,6 +310,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Time")
 	float GetCurrentEffectiveTimeDilation() const;
 
+	/** Silently restores every active property cycle for invalid-state recovery; emits no event and changes no Suspicion. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Recovery")
+	bool RestoreAllModificationsForRecovery();
+
 	/** Returns a concise description of the owner and its configured tags for development inspection. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Debug")
 	FString GetEditableDebugDescription() const;

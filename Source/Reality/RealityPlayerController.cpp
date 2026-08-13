@@ -10,6 +10,9 @@
 #include "Developer/DeveloperModeComponent.h"
 #include "Reality.h"
 #include "UI/DeveloperConsoleWidget.h"
+#include "UI/DemoSystemMenuWidget.h"
+#include "InputCoreTypes.h"
+#include "Puzzle/Demo/DemoPlayerRecoveryComponent.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
 ARealityPlayerController::ARealityPlayerController()
@@ -58,6 +61,14 @@ void ARealityPlayerController::OnUnPossess()
 	Super::OnUnPossess();
 }
 
+void ARealityPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	HideSystemMenu();
+	HideDeveloperConsole();
+	UnbindDeveloperMode();
+	Super::EndPlay(EndPlayReason);
+}
+
 void ARealityPlayerController::BindDeveloperMode(APawn* InPawn)
 {
 	UnbindDeveloperMode();
@@ -102,6 +113,11 @@ void ARealityPlayerController::ShowDeveloperConsole(UDeveloperModeComponent* Dev
 {
 	if (!IsLocalPlayerController() || !IsValid(DeveloperModeComponent))
 	{
+		return;
+	}
+	if (IsSystemMenuOpen())
+	{
+		DeveloperModeComponent->ExitDeveloperMode();
 		return;
 	}
 
@@ -150,6 +166,46 @@ void ARealityPlayerController::HideDeveloperConsole()
 	SetIgnoreLookInput(false);
 }
 
+void ARealityPlayerController::ShowSystemMenu()
+{
+	if (!IsLocalPlayerController() || !IsDemoWorld() || IsSystemMenuOpen()) return;
+	if (UDeveloperModeComponent* Developer = BoundDeveloperModeComponent.Get()) Developer->ExitDeveloperMode();
+	SystemMenuWidget = CreateWidget<UDemoSystemMenuWidget>(this, UDemoSystemMenuWidget::StaticClass());
+	if (!SystemMenuWidget) return;
+	SystemMenuWidget->SetOwningRealityController(this);
+	SystemMenuWidget->AddToPlayerScreen(100);
+	SetPause(true);
+	FInputModeGameAndUI Mode; Mode.SetWidgetToFocus(SystemMenuWidget->TakeWidget()); Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock); Mode.SetHideCursorDuringCapture(false);
+	SetInputMode(Mode); bShowMouseCursor = true; SystemMenuWidget->SetKeyboardFocus();
+}
+
+void ARealityPlayerController::HideSystemMenu()
+{
+	if (SystemMenuWidget) { SystemMenuWidget->RemoveFromParent(); SystemMenuWidget = nullptr; }
+	SetPause(false);
+	FInputModeGameOnly Mode; SetInputMode(Mode); bShowMouseCursor = false; SetIgnoreLookInput(false);
+}
+
+void ARealityPlayerController::ToggleSystemMenu() { IsSystemMenuOpen() ? HideSystemMenu() : ShowSystemMenu(); }
+bool ARealityPlayerController::IsSystemMenuOpen() const { return SystemMenuWidget && SystemMenuWidget->IsInViewport(); }
+bool ARealityPlayerController::IsDemoWorld() const { return GetWorld() && GetWorld()->GetMapName().Contains(TEXT("Lvl_Demo_Graybox")); }
+
+void ARealityPlayerController::ConfirmRestartDemo()
+{
+	if (UDeveloperModeComponent* Developer = BoundDeveloperModeComponent.Get()) Developer->ExitDeveloperMode();
+	HideSystemMenu();
+	RestartLevel();
+}
+
+bool ARealityPlayerController::RecoverPlayerPosition()
+{
+	APawn* ControlledPawn = GetPawn();
+	UDemoPlayerRecoveryComponent* Recovery = ControlledPawn ? ControlledPawn->FindComponentByClass<UDemoPlayerRecoveryComponent>() : nullptr;
+	const bool bRecovered = Recovery && Recovery->RecoverPlayer();
+	if (bRecovered) HideSystemMenu();
+	return bRecovered;
+}
+
 void ARealityPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -157,6 +213,8 @@ void ARealityPlayerController::SetupInputComponent()
 	// only add IMCs for local player controllers
 	if (IsLocalPlayerController())
 	{
+		FInputKeyBinding& SystemMenuBinding = InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ARealityPlayerController::ToggleSystemMenu);
+		SystemMenuBinding.bExecuteWhenPaused = true;
 		// Add Input Mapping Context
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 		{
