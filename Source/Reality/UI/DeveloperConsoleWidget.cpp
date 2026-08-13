@@ -165,6 +165,17 @@ void UDeveloperConsoleWidget::BuildPrototypeLayout()
 	UButton* FrictionHigh = AddButton(FrictionSection, TEXT("High")); FrictionHigh->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionHighClicked);
 	FrictionRestoreButton = AddButton(FrictionSection, TEXT("Restore Friction")); FrictionRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionRestoreClicked);
 
+	TimeSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TimeSection"));
+	Body->AddChildToVerticalBox(TimeSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
+	AddLabel(TimeSection, TEXT("LOCAL TIME"), 18, DeveloperConsoleStyle::Accent);
+	TimeStateText = AddLabel(TimeSection, TEXT("Modified: No\nPreset: 1.0x"), 14, DeveloperConsoleStyle::PrimaryText);
+	UButton* TimeQuarter = AddButton(TimeSection, TEXT("0.25x")); TimeQuarter->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeQuarterClicked);
+	UButton* TimeHalf = AddButton(TimeSection, TEXT("0.5x")); TimeHalf->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeHalfClicked);
+	UButton* TimeOne = AddButton(TimeSection, TEXT("1.0x")); TimeOne->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeOneClicked);
+	UButton* TimeDouble = AddButton(TimeSection, TEXT("2.0x")); TimeDouble->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeDoubleClicked);
+	UButton* TimeQuadruple = AddButton(TimeSection, TEXT("4.0x")); TimeQuadruple->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeQuadrupleClicked);
+	TimeRestoreButton = AddButton(TimeSection, TEXT("Restore Local Time")); TimeRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeRestoreClicked);
+
 	RealityText = AddLabel(Body, TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable"), 14, DeveloperConsoleStyle::PrimaryText);
 	if (UVerticalBoxSlot* RealitySlot = Cast<UVerticalBoxSlot>(RealityText->Slot))
 	{
@@ -212,6 +223,7 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	const FGameplayTag GravityTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"));
 	const FGameplayTag MassTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Mass"));
 	const FGameplayTag FrictionTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Friction"));
+	const FGameplayTag TimeTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Time"));
 
 	if (IsValid(Editable) && IsValid(Editable->GetOwner()))
 	{
@@ -230,11 +242,13 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	const bool bGravitySupported = IsValid(Editable) && Editable->SupportsCheat(GravityTag);
 	const bool bMassSupported = IsValid(Editable) && Editable->SupportsCheat(MassTag);
 	const bool bFrictionSupported = IsValid(Editable) && Editable->SupportsCheat(FrictionTag);
+	const bool bTimeSupported = IsValid(Editable) && Editable->SupportsCheat(TimeTag);
 	CollisionSection->SetVisibility(bCollisionSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	ScaleSection->SetVisibility(bScaleSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	GravitySection->SetVisibility(bGravitySupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	MassSection->SetVisibility(bMassSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	FrictionSection->SetVisibility(bFrictionSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	TimeSection->SetVisibility(bTimeSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 
 	if (bCollisionSupported)
 	{
@@ -277,6 +291,15 @@ void UDeveloperConsoleWidget::RefreshConsole()
 			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentFrictionPreset())).ToString() : TEXT("Unknown"),
 			Editable->GetEligibleFrictionComponentCount(), Editable->GetBaselineFriction(), Editable->GetCurrentFriction())));
 		FrictionRestoreButton->SetVisibility(Editable->IsFrictionModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (bTimeSupported)
+	{
+		const UEnum* PresetEnum = StaticEnum<ERealityTimePreset>();
+		TimeStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Local: %.3fx\nCurrent Local: %.3fx\nTick-driven actor behavior only"),
+			Editable->IsTimeModified() ? TEXT("Yes") : TEXT("No"),
+			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentTimePreset())).ToString() : TEXT("Unknown"),
+			Editable->GetOriginalTimeDilation(), Editable->GetCurrentEffectiveTimeDilation())));
+		TimeRestoreButton->SetVisibility(Editable->IsTimeModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
 	FString RealityDisplay = TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable");
@@ -366,6 +389,18 @@ bool UDeveloperConsoleWidget::ExecuteFrictionRestore()
 	return IsValid(Component) && Component->RestoreFocusedFrictionModification();
 }
 
+bool UDeveloperConsoleWidget::ExecuteTimePreset(const ERealityTimePreset Preset)
+{
+	UDeveloperModeComponent* Component = DeveloperModeComponent.Get();
+	return IsValid(Component) && Component->ApplyFocusedTimeModification(Preset);
+}
+
+bool UDeveloperConsoleWidget::ExecuteTimeRestore()
+{
+	UDeveloperModeComponent* Component = DeveloperModeComponent.Get();
+	return IsValid(Component) && Component->RestoreFocusedTimeModification();
+}
+
 void UDeveloperConsoleWidget::HandleRefreshRequested() { RefreshConsole(); }
 void UDeveloperConsoleWidget::HandleCollisionClicked() { ExecuteCollisionToggle(); }
 void UDeveloperConsoleWidget::HandleScaleQuarterClicked() { ExecuteScalePreset(ERealityScalePreset::Quarter); }
@@ -389,3 +424,9 @@ void UDeveloperConsoleWidget::HandleFrictionLowClicked() { ExecuteFrictionPreset
 void UDeveloperConsoleWidget::HandleFrictionNormalClicked() { ExecuteFrictionPreset(ERealityFrictionPreset::Normal); }
 void UDeveloperConsoleWidget::HandleFrictionHighClicked() { ExecuteFrictionPreset(ERealityFrictionPreset::High); }
 void UDeveloperConsoleWidget::HandleFrictionRestoreClicked() { ExecuteFrictionRestore(); }
+void UDeveloperConsoleWidget::HandleTimeQuarterClicked() { ExecuteTimePreset(ERealityTimePreset::Quarter); }
+void UDeveloperConsoleWidget::HandleTimeHalfClicked() { ExecuteTimePreset(ERealityTimePreset::Half); }
+void UDeveloperConsoleWidget::HandleTimeOneClicked() { ExecuteTimePreset(ERealityTimePreset::One); }
+void UDeveloperConsoleWidget::HandleTimeDoubleClicked() { ExecuteTimePreset(ERealityTimePreset::Double); }
+void UDeveloperConsoleWidget::HandleTimeQuadrupleClicked() { ExecuteTimePreset(ERealityTimePreset::Quadruple); }
+void UDeveloperConsoleWidget::HandleTimeRestoreClicked() { ExecuteTimeRestore(); }

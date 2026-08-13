@@ -55,6 +55,17 @@ enum class ERealityFrictionPreset : uint8
 	High
 };
 
+/** Controlled baseline-relative multipliers for Actor-local gameplay Tick time. */
+UENUM(BlueprintType)
+enum class ERealityTimePreset : uint8
+{
+	Quarter UMETA(DisplayName = "0.25x"),
+	Half UMETA(DisplayName = "0.5x"),
+	One UMETA(DisplayName = "1.0x"),
+	Double UMETA(DisplayName = "2.0x"),
+	Quadruple UMETA(DisplayName = "4.0x")
+};
+
 /** Exact collision state captured for one owner-local primitive during an active modification cycle. */
 USTRUCT()
 struct FRealityOriginalCollisionState
@@ -275,6 +286,30 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Friction")
 	float GetCurrentFriction() const;
 
+	/** Applies a controlled multiplier to the owner's captured CustomTimeDilation. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Time")
+	bool ApplyTimeModification(ERealityTimePreset Preset, AActor* InstigatingActor);
+
+	/** Restores the exact legitimate CustomTimeDilation captured for the active cycle. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Time")
+	bool RestoreTimeModification(AActor* InstigatingActor);
+
+	/** Returns whether an explicit Time cycle is active, including active 1.0x. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Time")
+	bool IsTimeModified() const { return bTimeModified; }
+
+	/** Returns the active Time preset, or 1.0x while unmodified. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Time")
+	ERealityTimePreset GetCurrentTimePreset() const { return CurrentTimePreset; }
+
+	/** Returns the captured baseline while active, otherwise the owner's current local dilation. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Time")
+	float GetOriginalTimeDilation() const;
+
+	/** Returns the owner's current CustomTimeDilation without global world dilation. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Time")
+	float GetCurrentEffectiveTimeDilation() const;
+
 	/** Returns a concise description of the owner and its configured tags for development inspection. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Debug")
 	FString GetEditableDebugDescription() const;
@@ -356,4 +391,14 @@ private:
 
 	UPROPERTY(Transient)
 	bool bFrictionModified = false;
+
+	/** Exact legitimate Actor-local dilation captured once per Time cycle. */
+	UPROPERTY(Transient)
+	float OriginalTimeDilation = 1.0f;
+
+	UPROPERTY(Transient)
+	ERealityTimePreset CurrentTimePreset = ERealityTimePreset::One;
+
+	UPROPERTY(Transient)
+	bool bTimeModified = false;
 };

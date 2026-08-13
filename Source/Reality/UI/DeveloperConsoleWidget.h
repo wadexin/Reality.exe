@@ -67,6 +67,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
 	bool ExecuteFrictionRestore();
 
+	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
+	bool ExecuteTimePreset(ERealityTimePreset Preset);
+
+	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
+	bool ExecuteTimeRestore();
+
 protected:
 	virtual bool Initialize() override;
 	virtual void NativeDestruct() override;
@@ -101,6 +107,12 @@ private:
 	UFUNCTION() void HandleFrictionNormalClicked();
 	UFUNCTION() void HandleFrictionHighClicked();
 	UFUNCTION() void HandleFrictionRestoreClicked();
+	UFUNCTION() void HandleTimeQuarterClicked();
+	UFUNCTION() void HandleTimeHalfClicked();
+	UFUNCTION() void HandleTimeOneClicked();
+	UFUNCTION() void HandleTimeDoubleClicked();
+	UFUNCTION() void HandleTimeQuadrupleClicked();
+	UFUNCTION() void HandleTimeRestoreClicked();
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UDeveloperModeComponent> DeveloperModeComponent;
@@ -123,5 +135,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> FrictionSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FrictionStateText;
 	UPROPERTY(Transient) TObjectPtr<UButton> FrictionRestoreButton;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> TimeSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TimeStateText;
+	UPROPERTY(Transient) TObjectPtr<UButton> TimeRestoreButton;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RealityText;
 };

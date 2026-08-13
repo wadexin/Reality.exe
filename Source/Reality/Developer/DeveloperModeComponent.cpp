@@ -349,6 +349,29 @@ bool UDeveloperModeComponent::RestoreFocusedFrictionModification()
 	return bSucceeded;
 }
 
+bool UDeveloperModeComponent::ApplyFocusedTimeModification(const ERealityTimePreset Preset)
+{
+	if (!bDeveloperModeActive) return false;
+	URealityEditableComponent* Editable = FocusedEditableComponent.Get();
+	AActor* Instigator = GetOwner();
+	const FGameplayTag TimeTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Time"));
+	if (!IsValid(Editable) || !IsValid(Instigator) || !Editable->SupportsCheat(TimeTag)) return false;
+	const bool bSucceeded = Editable->ApplyTimeModification(Preset, Instigator);
+	if (bSucceeded) RefreshDeveloperPresentation();
+	return bSucceeded;
+}
+
+bool UDeveloperModeComponent::RestoreFocusedTimeModification()
+{
+	if (!bDeveloperModeActive) return false;
+	URealityEditableComponent* Editable = FocusedEditableComponent.Get();
+	AActor* Instigator = GetOwner();
+	if (!IsValid(Editable) || !IsValid(Instigator)) return false;
+	const bool bSucceeded = Editable->RestoreTimeModification(Instigator);
+	if (bSucceeded) RefreshDeveloperPresentation();
+	return bSucceeded;
+}
+
 void UDeveloperModeComponent::SetFocusedEditableComponent(URealityEditableComponent* NewEditableComponent)
 {
 	AActor* NewActor = IsValid(NewEditableComponent) ? NewEditableComponent->GetOwner() : nullptr;

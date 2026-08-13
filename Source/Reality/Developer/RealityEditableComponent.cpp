@@ -15,6 +15,7 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Scale, "Cheat.Scale");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Gravity, "Cheat.Gravity");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Mass, "Cheat.Mass");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Friction, "Cheat.Friction");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Time, "Cheat.Time");
 
 namespace RealityScale
 {
@@ -124,6 +125,28 @@ namespace RealityFriction
 		case ERealityFrictionPreset::High: return TEXT("High");
 		default: return TEXT("Invalid");
 		}
+	}
+}
+
+namespace RealityTime
+{
+	bool TryGetMultiplier(const ERealityTimePreset Preset, float& OutMultiplier)
+	{
+		switch (Preset)
+		{
+		case ERealityTimePreset::Quarter: OutMultiplier = 0.25f; return true;
+		case ERealityTimePreset::Half: OutMultiplier = 0.5f; return true;
+		case ERealityTimePreset::One: OutMultiplier = 1.0f; return true;
+		case ERealityTimePreset::Double: OutMultiplier = 2.0f; return true;
+		case ERealityTimePreset::Quadruple: OutMultiplier = 4.0f; return true;
+		default: return false;
+		}
+	}
+
+	FString GetPresetLabel(const ERealityTimePreset Preset)
+	{
+		float Multiplier = 0.0f;
+		return TryGetMultiplier(Preset, Multiplier) ? FString::Printf(TEXT("%gx"), Multiplier) : TEXT("Invalid");
 	}
 }
 
@@ -970,6 +993,91 @@ float URealityEditableComponent::GetCurrentFriction() const
 	return GetBaselineFriction();
 }
 
+bool URealityEditableComponent::ApplyTimeModification(const ERealityTimePreset Preset, AActor* InstigatingActor)
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !SupportsCheat(TAG_Reality_Cheat_Time))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Time: Apply rejected for '%s': invalid owner or unsupported Cheat.Time."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	float Multiplier = 0.0f;
+	if (!RealityTime::TryGetMultiplier(Preset, Multiplier))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Time: Apply rejected for '%s' because preset value %d is invalid."), *GetNameSafe(Owner), static_cast<uint8>(Preset));
+		return false;
+	}
+	if (bTimeModified && CurrentTimePreset == Preset)
+	{
+		return false;
+	}
+
+	const float Baseline = bTimeModified ? OriginalTimeDilation : Owner->CustomTimeDilation;
+	if (!FMath::IsFinite(Baseline) || Baseline < 0.0f)
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Time: Apply rejected for '%s' because baseline CustomTimeDilation %.6f is invalid."), *GetNameSafe(Owner), Baseline);
+		return false;
+	}
+	if (!bTimeModified && Preset == ERealityTimePreset::One)
+	{
+		return false;
+	}
+
+	const float NewDilation = Baseline * Multiplier;
+	if (!FMath::IsFinite(NewDilation) || NewDilation < 0.0f)
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Time: Apply rejected for '%s' because preset produced invalid dilation %.6f."), *GetNameSafe(Owner), NewDilation);
+		return false;
+	}
+	if (!bTimeModified)
+	{
+		OriginalTimeDilation = Baseline;
+		bTimeModified = true;
+	}
+
+	Owner->CustomTimeDilation = NewDilation;
+	CurrentTimePreset = Preset;
+	EmitRealityCheatEvent(FRealityCheatEvent(Owner, TAG_Reality_Cheat_Time, InstigatingActor, ERealityCheatOperation::Apply));
+	UE_LOG(LogReality, Log, TEXT("Reality Time: Set '%s' to %s. BaselineLocal=%.3f CurrentLocal=%.3f. Actor/component Tick only; Chaos and world timers are unaffected."),
+		*GetNameSafe(Owner), *RealityTime::GetPresetLabel(Preset), OriginalTimeDilation, Owner->CustomTimeDilation);
+	return true;
+}
+
+bool URealityEditableComponent::RestoreTimeModification(AActor* InstigatingActor)
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !bTimeModified)
+	{
+		return false;
+	}
+	if (!FMath::IsFinite(OriginalTimeDilation) || OriginalTimeDilation < 0.0f)
+	{
+		UE_LOG(LogReality, Error, TEXT("Reality Time: Restore failed for '%s' because captured dilation %.6f is invalid; cycle remains active."), *GetNameSafe(Owner), OriginalTimeDilation);
+		return false;
+	}
+
+	Owner->CustomTimeDilation = OriginalTimeDilation;
+	bTimeModified = false;
+	CurrentTimePreset = ERealityTimePreset::One;
+	EmitRealityCheatEvent(FRealityCheatEvent(Owner, TAG_Reality_Cheat_Time, InstigatingActor, ERealityCheatOperation::Restore));
+	UE_LOG(LogReality, Log, TEXT("Reality Time: Restored '%s' to exact local dilation %.3f."), *GetNameSafe(Owner), Owner->CustomTimeDilation);
+	return true;
+}
+
+float URealityEditableComponent::GetOriginalTimeDilation() const
+{
+	if (bTimeModified) return OriginalTimeDilation;
+	const AActor* Owner = GetOwner();
+	return IsValid(Owner) && FMath::IsFinite(Owner->CustomTimeDilation) ? Owner->CustomTimeDilation : 1.0f;
+}
+
+float URealityEditableComponent::GetCurrentEffectiveTimeDilation() const
+{
+	const AActor* Owner = GetOwner();
+	return IsValid(Owner) && FMath::IsFinite(Owner->CustomTimeDilation) ? Owner->CustomTimeDilation : 1.0f;
+}
+
 void URealityEditableComponent::EmitRealityCheatEvent(const FRealityCheatEvent& CheatEvent)
 {
 	if (UWorld* World = GetWorld())
@@ -993,7 +1101,7 @@ void URealityEditableComponent::EmitRealityCheatEvent(const FRealityCheatEvent& 
 FString URealityEditableComponent::GetEditableDebugDescription() const
 {
 	return FString::Printf(
-		TEXT("Actor='%s' SupportedCheats=[%s] ObjectTags=[%s] CollisionModified=%s ScaleModified=%s ScalePreset=%s OriginalScale=%s CurrentScale=%s GravityModified=%s GravityPreset=%s EligibleGravityComponents=%d MassModified=%s MassPreset=%s BaselineMass=%.3fkg CurrentMass=%.3fkg EligibleMassComponents=%d FrictionModified=%s FrictionPreset=%s BaselineFriction=%.3f CurrentFriction=%.3f EligibleFrictionComponents=%d"),
+		TEXT("Actor='%s' SupportedCheats=[%s] ObjectTags=[%s] CollisionModified=%s ScaleModified=%s ScalePreset=%s OriginalScale=%s CurrentScale=%s GravityModified=%s GravityPreset=%s EligibleGravityComponents=%d MassModified=%s MassPreset=%s BaselineMass=%.3fkg CurrentMass=%.3fkg EligibleMassComponents=%d FrictionModified=%s FrictionPreset=%s BaselineFriction=%.3f CurrentFriction=%.3f EligibleFrictionComponents=%d TimeModified=%s TimePreset=%s BaselineLocalTime=%.3f CurrentLocalTime=%.3f"),
 		*GetNameSafe(GetOwner()),
 		*SupportedCheats.ToStringSimple(),
 		*ObjectTags.ToStringSimple(),
@@ -1014,7 +1122,11 @@ FString URealityEditableComponent::GetEditableDebugDescription() const
 		RealityFriction::GetPresetLabel(CurrentFrictionPreset),
 		GetBaselineFriction(),
 		GetCurrentFriction(),
-		GetEligibleFrictionComponentCount());
+		GetEligibleFrictionComponentCount(),
+		bTimeModified ? TEXT("true") : TEXT("false"),
+		*RealityTime::GetPresetLabel(CurrentTimePreset),
+		GetOriginalTimeDilation(),
+		GetCurrentEffectiveTimeDilation());
 }
 
 void URealityEditableComponent::LogEditableConfiguration() const

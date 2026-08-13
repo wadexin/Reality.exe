@@ -125,6 +125,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Friction")
 	bool RestoreFocusedFrictionModification();
 
+	/** Applies a typed local Time preset to the selected target. Time intentionally has no fallback hotkey. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Time")
+	bool ApplyFocusedTimeModification(ERealityTimePreset Preset);
+
+	/** Restores the selected target's exact captured local CustomTimeDilation. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Time")
+	bool RestoreFocusedTimeModification();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

@@ -241,6 +241,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Scale Restore does nothing while Developer Mode is inactive"), DeveloperComponent->RestoreFocusedScaleModification());
 	TestFalse(TEXT("Gravity Cycle does nothing while Developer Mode is inactive"), DeveloperComponent->CycleFocusedGravityModification());
 	TestFalse(TEXT("Gravity Restore does nothing while Developer Mode is inactive"), DeveloperComponent->RestoreFocusedGravityModification());
+	TestFalse(TEXT("Time Apply does nothing while Developer Mode is inactive"), DeveloperComponent->ApplyFocusedTimeModification(ERealityTimePreset::Half));
+	TestFalse(TEXT("Time Restore does nothing while Developer Mode is inactive"), DeveloperComponent->RestoreFocusedTimeModification());
 
 	ARealityEditableTestActor* EditableActorA = SpawnEditable(TestWorld, FVector(150.0f, 0.0f, 0.0f));
 	DeveloperComponent->OnDeveloperFocusGained.AddDynamic(EditableActorA, &ARealityEditableTestActor::HandleDeveloperFocusGained);
@@ -285,6 +287,7 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Developer Scale Restore returns the focused Actor to baseline"), EditableActorA->GetActorScale3D(), FVector::OneVector);
 	FGameplayTagContainer AllPrototypeCheats = EditableActorA->EditableComponent->GetSupportedCheats();
 	AllPrototypeCheats.AddTag(GetGravityTag());
+	AllPrototypeCheats.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Cheat.Time")));
 	EditableActorA->EditableComponent->SetSupportedCheats(AllPrototypeCheats);
 	EditableActorA->PrimitiveA->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 	EditableActorA->PrimitiveA->SetSimulatePhysics(true);
@@ -304,6 +307,10 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Third Gravity cycle step is Normal"), EditableActorA->EditableComponent->GetCurrentGravityPreset(), ERealityGravityPreset::Normal);
 	TestTrue(TEXT("Focused Gravity prototype invokes Restore"), DeveloperComponent->RestoreFocusedGravityModification());
 	TestFalse(TEXT("Developer Gravity Restore ends the cycle"), EditableActorA->EditableComponent->IsGravityModified());
+	TestTrue(TEXT("Console-style direct Time preset succeeds"), DeveloperComponent->ApplyFocusedTimeModification(ERealityTimePreset::Half));
+	TestEqual(TEXT("Direct Time preset reaches the editable implementation"), EditableActorA->CustomTimeDilation, 0.5f);
+	TestTrue(TEXT("Focused Time Restore succeeds"), DeveloperComponent->RestoreFocusedTimeModification());
+	TestFalse(TEXT("Developer Time Restore ends the cycle"), EditableActorA->EditableComponent->IsTimeModified());
 	EditableActorA->PrimitiveA->SetSimulatePhysics(false);
 
 	// Multiple simultaneously modified targets must remain independently reacquirable and restorable.
@@ -374,6 +381,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Unsupported focused Scale Restore fails safely"), DeveloperComponent->RestoreFocusedScaleModification());
 	TestFalse(TEXT("Unsupported focused Gravity Cycle fails safely"), DeveloperComponent->CycleFocusedGravityModification());
 	TestFalse(TEXT("Unsupported focused Gravity Restore fails safely"), DeveloperComponent->RestoreFocusedGravityModification());
+	TestFalse(TEXT("Unsupported focused Time Apply fails safely"), DeveloperComponent->ApplyFocusedTimeModification(ERealityTimePreset::Half));
+	TestFalse(TEXT("Unsupported focused Time Restore fails safely"), DeveloperComponent->RestoreFocusedTimeModification());
 
 	TestFalse(TEXT("Second mode toggle deactivates Developer Mode"), DeveloperComponent->ToggleDeveloperMode());
 	TestFalse(TEXT("Developer scanning Tick disables again"), DeveloperComponent->IsComponentTickEnabled());
@@ -383,6 +392,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Scale Restore remains disabled after mode exit"), DeveloperComponent->RestoreFocusedScaleModification());
 	TestFalse(TEXT("Gravity Cycle remains disabled after mode exit"), DeveloperComponent->CycleFocusedGravityModification());
 	TestFalse(TEXT("Gravity Restore remains disabled after mode exit"), DeveloperComponent->RestoreFocusedGravityModification());
+	TestFalse(TEXT("Time Apply remains disabled after mode exit"), DeveloperComponent->ApplyFocusedTimeModification(ERealityTimePreset::Half));
+	TestFalse(TEXT("Time Restore remains disabled after mode exit"), DeveloperComponent->RestoreFocusedTimeModification());
 
 	TestWorld->DestroyWorld(false);
 	TestWorld->SetPhysicsScene(nullptr);
