@@ -7,6 +7,7 @@
 #include "Components/BoxComponent.h"
 #include "Developer/DeveloperModeComponent.h"
 #include "Developer/DeveloperTargetPresentationComponent.h"
+#include "Audio/DeveloperAudioFeedbackComponent.h"
 #include "Developer/RealityEditableComponent.h"
 #include "Developer/RealityEditableTestActor.h"
 #include "Engine/CollisionProfile.h"
@@ -233,10 +234,14 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	AActor* PlayerActor = TestWorld->SpawnActor<AActor>(FVector::ZeroVector, FRotator::ZeroRotator);
 	UDeveloperModeComponent* DeveloperComponent = NewObject<UDeveloperModeComponent>(PlayerActor, TEXT("DeveloperModeComponent"));
 	UDeveloperTargetPresentationComponent* PresentationComponent = NewObject<UDeveloperTargetPresentationComponent>(PlayerActor, TEXT("DeveloperTargetPresentationComponent"));
+	UDeveloperAudioFeedbackComponent* AudioFeedbackComponent = NewObject<UDeveloperAudioFeedbackComponent>(PlayerActor, TEXT("DeveloperAudioFeedbackComponent"));
 	PlayerActor->AddInstanceComponent(DeveloperComponent);
 	PlayerActor->AddInstanceComponent(PresentationComponent);
+	PlayerActor->AddInstanceComponent(AudioFeedbackComponent);
 	PresentationComponent->RegisterComponent();
+	AudioFeedbackComponent->RegisterComponent();
 	DeveloperComponent->RegisterComponent();
+	PlayerActor->DispatchBeginPlay();
 	DeveloperComponent->InspectionDistance = 500.0f;
 	TestFalse(TEXT("A runtime Developer Mode component starts inactive"), DeveloperComponent->IsDeveloperModeActive());
 	TestFalse(TEXT("Developer scanning Tick is disabled while mode is inactive"), DeveloperComponent->IsComponentTickEnabled());
@@ -274,6 +279,8 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Developer Apply emits one cheat event"), EditableActorA->CheatEventCount, 1);
 	TestEqual(TEXT("Developer Apply uses the player-side owner as instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
 	TestEqual(TEXT("Successful Apply produces Apply presentation feedback"), DeveloperComponent->GetOperationFeedback(), EDeveloperOperationFeedback::Applied);
+	TestEqual(TEXT("Successful Apply reaches presentation audio once"), AudioFeedbackComponent->GetSuccessfulFeedbackCount(), 1);
+	TestEqual(TEXT("Presentation audio identifies Apply"), AudioFeedbackComponent->GetLastFeedback(), EDeveloperOperationFeedback::Applied);
 	const int32 CollisionApplyFeedbackSequence = DeveloperComponent->GetOperationFeedbackSequence();
 	DeveloperComponent->UpdateDeveloperFocus();
 	TestEqual(TEXT("A collision-disabled target remains inspectable through its visual bounds"), DeveloperComponent->GetFocusedDeveloperActor(), static_cast<AActor*>(EditableActorA));
@@ -297,11 +304,14 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Developer Restore emits one additional event"), EditableActorA->CheatEventCount, 2);
 	TestEqual(TEXT("Developer Restore retains the player instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
 	TestEqual(TEXT("Successful Restore produces distinct presentation feedback"), DeveloperComponent->GetOperationFeedback(), EDeveloperOperationFeedback::Restored);
+	TestEqual(TEXT("Successful Restore reaches presentation audio once more"), AudioFeedbackComponent->GetSuccessfulFeedbackCount(), 2);
+	TestEqual(TEXT("Presentation audio identifies Restore"), AudioFeedbackComponent->GetLastFeedback(), EDeveloperOperationFeedback::Restored);
 	TestTrue(TEXT("Focused Scale prototype invokes Apply"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
 	const int32 ScaleApplyFeedbackSequence = DeveloperComponent->GetOperationFeedbackSequence();
 	TestTrue(TEXT("A new successful operation advances the feedback sequence"), ScaleApplyFeedbackSequence > CollisionApplyFeedbackSequence);
 	TestFalse(TEXT("Repeating the same Scale preset is a safe no-op"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
 	TestEqual(TEXT("A no-op cannot create false success feedback"), DeveloperComponent->GetOperationFeedbackSequence(), ScaleApplyFeedbackSequence);
+	TestEqual(TEXT("A no-op cannot create false audio feedback"), AudioFeedbackComponent->GetSuccessfulFeedbackCount(), 3);
 	TestEqual(TEXT("Developer Scale Apply changes the focused Actor"), EditableActorA->GetActorScale3D(), FVector(0.5f));
 	TestEqual(TEXT("Developer Scale Apply uses the player-side owner as instigator"), EditableActorA->LastCheatEvent.InstigatingActor.Get(), PlayerActor);
 	TestEqual(TEXT("Developer Scale Apply uses Cheat.Scale"), EditableActorA->LastCheatEvent.CheatTag, GetScaleTag());
@@ -400,6 +410,7 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	DeveloperComponent->UpdateDeveloperFocus();
 	TestEqual(TEXT("Actor B can regain focus"), DeveloperComponent->GetFocusedDeveloperActor(), static_cast<AActor*>(EditableActorB));
 	const int32 FeedbackSequenceBeforeFailures = DeveloperComponent->GetOperationFeedbackSequence();
+	const int32 AudioFeedbackCountBeforeFailures = AudioFeedbackComponent->GetSuccessfulFeedbackCount();
 	TestFalse(TEXT("Unsupported focused Collision fails safely"), DeveloperComponent->ToggleFocusedCollisionModification());
 	TestFalse(TEXT("Unsupported focused Scale fails safely"), DeveloperComponent->ApplyFocusedScaleModification(ERealityScalePreset::Half));
 	TestFalse(TEXT("Unsupported focused Scale Restore fails safely"), DeveloperComponent->RestoreFocusedScaleModification());
@@ -408,6 +419,7 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Unsupported focused Time Apply fails safely"), DeveloperComponent->ApplyFocusedTimeModification(ERealityTimePreset::Half));
 	TestFalse(TEXT("Unsupported focused Time Restore fails safely"), DeveloperComponent->RestoreFocusedTimeModification());
 	TestEqual(TEXT("Failed Apply/Restore operations cannot create false feedback"), DeveloperComponent->GetOperationFeedbackSequence(), FeedbackSequenceBeforeFailures);
+	TestEqual(TEXT("Failed Apply/Restore operations cannot create false audio feedback"), AudioFeedbackComponent->GetSuccessfulFeedbackCount(), AudioFeedbackCountBeforeFailures);
 
 	TestFalse(TEXT("Second mode toggle deactivates Developer Mode"), DeveloperComponent->ToggleDeveloperMode());
 	TestFalse(TEXT("Developer scanning Tick disables again"), DeveloperComponent->IsComponentTickEnabled());

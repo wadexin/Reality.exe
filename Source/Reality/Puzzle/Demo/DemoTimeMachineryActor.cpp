@@ -3,6 +3,7 @@
 #include "Puzzle/Demo/DemoTimeMachineryActor.h"
 
 #include "Components/SceneComponent.h"
+#include "Components/AudioComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Developer/RealityEditableComponent.h"
@@ -87,6 +88,59 @@ ADemoTimeMachineryActor::ADemoTimeMachineryActor()
 	FGameplayTagContainer ObjectTags;
 	ObjectTags.AddTag(TAG_Demo_SecurityObject);
 	EditableComponent->SetObjectTags(ObjectTags);
+
+	MachineryAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("Time Machinery Audio"));
+	MachineryAudio->SetupAttachment(SceneRoot);
+	MachineryAudio->bAutoActivate = true;
+	MachineryAudio->bAllowSpatialization = true;
+	MachineryAudio->bStopWhenOwnerDestroyed = true;
+	MachineryAudio->bOverrideAttenuation = true;
+	MachineryAudio->AttenuationOverrides.bAttenuate = true;
+	MachineryAudio->AttenuationOverrides.bSpatialize = true;
+	MachineryAudio->AttenuationOverrides.AttenuationShapeExtents = FVector(250.0f);
+	MachineryAudio->AttenuationOverrides.FalloffDistance = 1400.0f;
+	static ConstructorHelpers::FObjectFinder<USoundBase> RotorSound(TEXT("/Game/Audio/Reality/Machinery/S_RLT_RotorLoop.S_RLT_RotorLoop"));
+	if (RotorSound.Succeeded()) MachineryAudio->SetSound(RotorSound.Object);
+	MachineryAudio->SetVolumeMultiplier(0.34f);
+}
+
+void ADemoTimeMachineryActor::BeginPlay()
+{
+	Super::BeginPlay();
+	EditableComponent->OnRealityCheatEvent.AddUniqueDynamic(this, &ADemoTimeMachineryActor::HandleRealityCheatEvent);
+	RefreshTimeAudio();
+}
+
+void ADemoTimeMachineryActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	EditableComponent->OnRealityCheatEvent.RemoveDynamic(this, &ADemoTimeMachineryActor::HandleRealityCheatEvent);
+	if (MachineryAudio) MachineryAudio->Stop();
+	Super::EndPlay(EndPlayReason);
+}
+
+void ADemoTimeMachineryActor::HandleRealityCheatEvent(const FRealityCheatEvent& CheatEvent)
+{
+	if (CheatEvent.TargetActor == this && CheatEvent.CheatTag.MatchesTagExact(TAG_Demo_TimeMachinery)) RefreshTimeAudio();
+}
+
+void ADemoTimeMachineryActor::RefreshTimeAudio()
+{
+	if (MachineryAudio) MachineryAudio->SetPitchMultiplier(GetPresentationAudioPitch());
+	++AudioStateUpdateCount;
+}
+
+float ADemoTimeMachineryActor::GetPresentationAudioPitch() const
+{
+	if (!EditableComponent || !EditableComponent->IsTimeModified()) return 1.0f;
+	switch (EditableComponent->GetCurrentTimePreset())
+	{
+	case ERealityTimePreset::Quarter: return 0.50f;
+	case ERealityTimePreset::Half: return 0.70f;
+	case ERealityTimePreset::One: return 1.0f;
+	case ERealityTimePreset::Double: return 1.40f;
+	case ERealityTimePreset::Quadruple: return 2.0f;
+	default: return 1.0f;
+	}
 }
 
 void ADemoTimeMachineryActor::ConfigureTimeMachinery(

@@ -15,6 +15,7 @@ class UInputMappingContext;
 class UInteractionComponent;
 class UDeveloperModeComponent;
 class UDeveloperTargetPresentationComponent;
+class UDeveloperAudioFeedbackComponent;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -46,6 +47,10 @@ class ARealityCharacter : public ACharacter
 	/** Render-only feedback for the frozen Developer Mode target. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UDeveloperTargetPresentationComponent* DeveloperTargetPresentationComponent;
+
+	/** Restrained event-driven audio for Developer Mode and accepted Reality edits. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UDeveloperAudioFeedbackComponent* DeveloperAudioFeedbackComponent;
 
 protected:
 
@@ -180,6 +185,7 @@ public:
 
 	/** Returns the player-owned Developer Mode presentation layer. */
 	UDeveloperTargetPresentationComponent* GetDeveloperTargetPresentationComponent() const { return DeveloperTargetPresentationComponent; }
+	UDeveloperAudioFeedbackComponent* GetDeveloperAudioFeedbackComponent() const { return DeveloperAudioFeedbackComponent; }
 
 	/** Returns the Enhanced Input action used to toggle Developer Mode. */
 	UInputAction* GetDeveloperModeAction() const { return DeveloperModeAction; }

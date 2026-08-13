@@ -3,6 +3,7 @@
 #include "Puzzle/Demo/DemoTimeReferenceActor.h"
 
 #include "Components/SceneComponent.h"
+#include "Components/AudioComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/CollisionProfile.h"
@@ -53,6 +54,21 @@ ADemoTimeReferenceActor::ADemoTimeReferenceActor()
 	ReferenceLabel->SetWorldSize(22.0f);
 	ReferenceLabel->SetTextRenderColor(FColor::Silver);
 	ReferenceLabel->SetText(NSLOCTEXT("RealityDemo", "ReferenceMachine", "REFERENCE ROTOR\nBASELINE: 1.0x"));
+
+	MachineryAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("Reference Machinery Audio"));
+	MachineryAudio->SetupAttachment(SceneRoot);
+	MachineryAudio->bAutoActivate = true;
+	MachineryAudio->bAllowSpatialization = true;
+	MachineryAudio->bStopWhenOwnerDestroyed = true;
+	MachineryAudio->bOverrideAttenuation = true;
+	MachineryAudio->AttenuationOverrides.bAttenuate = true;
+	MachineryAudio->AttenuationOverrides.bSpatialize = true;
+	MachineryAudio->AttenuationOverrides.AttenuationShapeExtents = FVector(250.0f);
+	MachineryAudio->AttenuationOverrides.FalloffDistance = 1400.0f;
+	static ConstructorHelpers::FObjectFinder<USoundBase> RotorSound(TEXT("/Game/Audio/Reality/Machinery/S_RLT_RotorLoop.S_RLT_RotorLoop"));
+	if (RotorSound.Succeeded()) MachineryAudio->SetSound(RotorSound.Object);
+	MachineryAudio->SetVolumeMultiplier(0.28f);
+	MachineryAudio->SetPitchMultiplier(1.0f);
 }
 
 void ADemoTimeReferenceActor::Tick(const float DeltaSeconds)

@@ -10,6 +10,8 @@
 class URealityContextComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
+class UAudioComponent;
+class USoundBase;
 
 /** Interactable maintenance infrastructure that owns and visibly toggles one SensorFailure Context source. */
 UCLASS(Blueprintable)
@@ -29,6 +31,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<URealityContextComponent> ContextComponent;
 
+	/** Spatial infrastructure bed whose tone follows ONLINE versus FAILURE ACTIVE. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UAudioComponent> InfrastructureAudio;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Context|Audio")
+	float GetInfrastructurePitch() const;
+
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Demo|Context")
 	void ConfigureSensorFailure(float EffectRange, bool bStartActive = false);
 
@@ -41,4 +50,6 @@ protected:
 
 private:
 	void RefreshStatusFeedback();
+	void RefreshAudioFeedback(bool bPlayToggleCue);
+	UPROPERTY() TObjectPtr<USoundBase> ToggleSound;
 };

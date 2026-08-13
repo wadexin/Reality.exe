@@ -23,6 +23,8 @@ enum class EDeveloperOperationFeedback : uint8
 	Restored
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDeveloperOperationFeedbackSignature, EDeveloperOperationFeedback, Feedback, FGameplayTag, CheatTag);
+
 /**
  * Player-side shell for Developer Mode state, editable-object focus, and prototype cheat invocation.
  * Its lightweight view trace runs only while Developer Mode is active and remains independent of IInteractable.
@@ -58,6 +60,10 @@ public:
 	/** Broadcast after target or editable/Reality display data may have changed. */
 	UPROPERTY(BlueprintAssignable, Category = "Developer Mode|Events")
 	FDeveloperConsoleRefreshSignature OnDeveloperConsoleRefresh;
+
+	/** Broadcast only when an authoritative successful Reality operation creates presentation feedback. */
+	UPROPERTY(BlueprintAssignable, Category = "Developer Mode|Events")
+	FDeveloperOperationFeedbackSignature OnDeveloperOperationFeedback;
 
 	/** Broadcast when a Reality-editable Actor becomes the inspected developer target. */
 	UPROPERTY(BlueprintAssignable, Category = "Developer Mode|Focus")

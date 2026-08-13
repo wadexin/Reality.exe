@@ -652,6 +652,7 @@ void UDeveloperModeComponent::HandleFocusedRealityCheatEvent(const FRealityCheat
 		: EDeveloperOperationFeedback::Restored;
 	OperationFeedbackTag = CheatEvent.CheatTag;
 	++OperationFeedbackSequence;
+	OnDeveloperOperationFeedback.Broadcast(OperationFeedback, OperationFeedbackTag);
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(OperationFeedbackTimer, this, &UDeveloperModeComponent::ClearOperationFeedback, 0.9f, false);

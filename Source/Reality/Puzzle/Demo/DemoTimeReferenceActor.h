@@ -9,6 +9,7 @@
 class USceneComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
+class UAudioComponent;
 
 /** Non-editable rotor that provides a persistent baseline cadence beside the local-Time target. */
 UCLASS(Blueprintable)
@@ -36,6 +37,13 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UTextRenderComponent> ReferenceLabel;
+
+	/** Stable spatial cadence baseline; never bound to the editable rotor's events. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UAudioComponent> MachineryAudio;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Time|Audio")
+	float GetPresentationAudioPitch() const { return 1.0f; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Time")
 	float RotationDegreesPerSecond = 90.0f;

@@ -3,11 +3,13 @@
 #include "Puzzle/Demo/DemoSensorFailurePanel.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Components/AudioComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "NativeGameplayTags.h"
 #include "Reality.h"
 #include "RealitySystem/RealityContextComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Demo_SensorFailure, "Context.SensorFailure");
@@ -38,12 +40,29 @@ ADemoSensorFailurePanel::ADemoSensorFailurePanel()
 	ContextTags.AddTag(TAG_Demo_SensorFailure);
 	ContextComponent->ContextTags = ContextTags;
 	ContextComponent->bContextActive = false;
+
+	InfrastructureAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("Sensor Infrastructure Audio"));
+	InfrastructureAudio->SetupAttachment(PanelMesh);
+	InfrastructureAudio->bAutoActivate = true;
+	InfrastructureAudio->bAllowSpatialization = true;
+	InfrastructureAudio->bStopWhenOwnerDestroyed = true;
+	InfrastructureAudio->bOverrideAttenuation = true;
+	InfrastructureAudio->AttenuationOverrides.bAttenuate = true;
+	InfrastructureAudio->AttenuationOverrides.bSpatialize = true;
+	InfrastructureAudio->AttenuationOverrides.AttenuationShapeExtents = FVector(180.0f);
+	InfrastructureAudio->AttenuationOverrides.FalloffDistance = 950.0f;
+	static ConstructorHelpers::FObjectFinder<USoundBase> SensorLoop(TEXT("/Game/Audio/Reality/Machinery/S_RLT_UtilityLoop.S_RLT_UtilityLoop"));
+	if (SensorLoop.Succeeded()) InfrastructureAudio->SetSound(SensorLoop.Object);
+	static ConstructorHelpers::FObjectFinder<USoundBase> SensorToggle(TEXT("/Game/Audio/Reality/Machinery/S_RLT_SensorToggle.S_RLT_SensorToggle"));
+	ToggleSound = SensorToggle.Object;
+	InfrastructureAudio->SetVolumeMultiplier(0.20f);
 }
 
 void ADemoSensorFailurePanel::BeginPlay()
 {
 	Super::BeginPlay();
 	RefreshStatusFeedback();
+	RefreshAudioFeedback(false);
 }
 
 void ADemoSensorFailurePanel::ConfigureSensorFailure(const float EffectRange, const bool bStartActive)
@@ -51,6 +70,7 @@ void ADemoSensorFailurePanel::ConfigureSensorFailure(const float EffectRange, co
 	ContextComponent->EffectRange = FMath::Max(0.0f, EffectRange);
 	ContextComponent->SetContextActive(bStartActive);
 	RefreshStatusFeedback();
+	RefreshAudioFeedback(false);
 }
 
 bool ADemoSensorFailurePanel::CanInteract_Implementation(AActor* Interactor) const
@@ -66,6 +86,7 @@ void ADemoSensorFailurePanel::Interact_Implementation(AActor* Interactor)
 	}
 	ContextComponent->SetContextActive(!ContextComponent->IsContextActive());
 	RefreshStatusFeedback();
+	RefreshAudioFeedback(true);
 	UE_LOG(LogReality, Log, TEXT("Demo sensor array '%s' changed to %s by '%s'."), *GetNameSafe(this),
 		ContextComponent->IsContextActive() ? TEXT("FAILURE") : TEXT("ONLINE"), *GetNameSafe(Interactor));
 }
@@ -84,4 +105,23 @@ void ADemoSensorFailurePanel::RefreshStatusFeedback()
 		? NSLOCTEXT("RealityDemo", "SensorFailure", "SECURITY SENSOR ARRAY\nFAILURE ACTIVE")
 		: NSLOCTEXT("RealityDemo", "SensorOnline", "SECURITY SENSOR ARRAY\nONLINE\nE: DIAGNOSTIC"));
 	StatusText->SetTextRenderColor(bFailure ? FColor::Orange : FColor::Green);
+}
+
+void ADemoSensorFailurePanel::RefreshAudioFeedback(const bool bPlayToggleCue)
+{
+	if (!InfrastructureAudio) return;
+	InfrastructureAudio->SetPitchMultiplier(GetInfrastructurePitch());
+	InfrastructureAudio->SetVolumeMultiplier(ContextComponent && ContextComponent->IsContextActive() ? 0.14f : 0.20f);
+	if (bPlayToggleCue)
+	{
+		if (ToggleSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, ToggleSound, GetActorLocation(), 0.55f, GetInfrastructurePitch());
+		}
+	}
+}
+
+float ADemoSensorFailurePanel::GetInfrastructurePitch() const
+{
+	return ContextComponent && ContextComponent->IsContextActive() ? 0.72f : 1.0f;
 }
