@@ -7,6 +7,8 @@
 #include "RealitySystem/RealityCheatEvent.h"
 #include "RealityManagerSubsystem.generated.h"
 
+class URealityWitnessComponent;
+
 /** Global prototype escalation states derived exclusively from current Reality Suspicion. */
 UENUM(BlueprintType)
 enum class ERealityState : uint8
@@ -37,6 +39,15 @@ struct REALITY_API FRealityProcessedCheatRecord
 	float SuspicionDelta = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Reality|History")
+	float BaseSuspicionDelta = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Reality|History")
+	float WitnessSuspicionDelta = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Reality|History")
+	int32 ObservingWitnessCount = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Reality|History")
 	float SuspicionBefore = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Reality|History")
@@ -59,6 +70,15 @@ class REALITY_API URealityManagerSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
+	/** Registers one active world Witness without scanning. Duplicate requests are ignored. */
+	void RegisterWitness(URealityWitnessComponent* WitnessComponent);
+
+	/** Removes a Witness safely. Duplicate or teardown-time requests are harmless. */
+	void UnregisterWitness(URealityWitnessComponent* WitnessComponent);
+
+	/** Returns the number of currently valid registered Witness components for development/tests. */
+	int32 GetRegisteredWitnessCount();
+
 	/** Processes one known Cheat event and returns whether it had a configured rule. */
 	UFUNCTION(BlueprintCallable, Category = "Reality")
 	bool ProcessCheatEvent(const FRealityCheatEvent& CheatEvent);
@@ -88,7 +108,8 @@ public:
 
 private:
 	ERealityState CalculateRealityState(float Suspicion) const;
-	void AddHistoryRecord(const FRealityCheatEvent& CheatEvent, float Delta, float Before, float After);
+	float EvaluateWitnesses(const FRealityCheatEvent& CheatEvent, TArray<TWeakObjectPtr<URealityWitnessComponent>>& OutObservingWitnesses);
+	void AddHistoryRecord(const FRealityCheatEvent& CheatEvent, float BaseDelta, float WitnessDelta, int32 ObserverCount, float AppliedDelta, float Before, float After);
 
 	UPROPERTY(Transient)
 	float CurrentSuspicion = 0.0f;
@@ -98,4 +119,7 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<FRealityProcessedCheatRecord> EventHistory;
+
+	UPROPERTY(Transient)
+	TArray<TWeakObjectPtr<URealityWitnessComponent>> RegisteredWitnesses;
 };

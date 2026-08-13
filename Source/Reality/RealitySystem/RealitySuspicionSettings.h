@@ -27,6 +27,26 @@ struct REALITY_API FRealityCheatSuspicionRule
 	float SuspicionValue = 0.0f;
 };
 
+/** One configurable Witness evidence rule keyed by an exact Witness Gameplay Tag. */
+USTRUCT(BlueprintType)
+struct REALITY_API FRealityWitnessSuspicionRule
+{
+	GENERATED_BODY()
+
+	FRealityWitnessSuspicionRule() = default;
+	FRealityWitnessSuspicionRule(const FGameplayTag InWitnessType, const float InSuspicionValue)
+		: WitnessType(InWitnessType)
+		, SuspicionValue(InSuspicionValue)
+	{
+	}
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Witness", meta = (Categories = "Witness"))
+	FGameplayTag WitnessType;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Witness", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float SuspicionValue = 0.0f;
+};
+
 /** Lightweight project settings for prototype Suspicion rules, thresholds, and debug-history capacity. */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Reality Suspicion"))
 class REALITY_API URealitySuspicionSettings : public UDeveloperSettings
@@ -39,11 +59,20 @@ public:
 	/** Finds the exact configured rule for a Cheat tag. */
 	bool FindBaseSuspicion(FGameplayTag CheatTag, float& OutSuspicionValue) const;
 
+	/** Finds the exact configured evidence value for a supported Witness category. */
+	bool FindWitnessSuspicion(FGameplayTag WitnessType, float& OutSuspicionValue) const;
+
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Suspicion")
 	TArray<FRealityCheatSuspicionRule> CheatSuspicionRules;
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Suspicion", meta = (ClampMin = "0.0", ClampMax = "100.0"))
 	float RestoreSuspicionReduction = 5.0f;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Witness")
+	TArray<FRealityWitnessSuspicionRule> WitnessSuspicionRules;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Witness", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float MaximumWitnessBonusPerEvent = 30.0f;
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "State Thresholds", meta = (ClampMin = "0.0", ClampMax = "100.0"))
 	float QuestioningThreshold = 20.0f;

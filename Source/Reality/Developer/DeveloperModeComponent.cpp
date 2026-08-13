@@ -442,10 +442,13 @@ void UDeveloperModeComponent::RefreshDebugReadout() const
 			if (const FRealityProcessedCheatRecord* LastEvent = RealityManager->GetMostRecentEvent())
 			{
 				Readout += FString::Printf(
-					TEXT("\nLast Event: %s %s %+.0f"),
+					TEXT("\nLast Event: %s %s %+.0f\nBase: %+.0f\nWitness: %+.0f\nObserved By: %d"),
 					*LastEvent->CheatTag.ToString(),
 					LastEvent->Operation == ERealityCheatOperation::Apply ? TEXT("Apply") : TEXT("Restore"),
-					LastEvent->SuspicionDelta);
+					LastEvent->SuspicionDelta,
+					LastEvent->BaseSuspicionDelta,
+					LastEvent->WitnessSuspicionDelta,
+					LastEvent->ObservingWitnessCount);
 			}
 		}
 	}

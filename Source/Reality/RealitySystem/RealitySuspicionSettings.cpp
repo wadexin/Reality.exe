@@ -7,6 +7,8 @@
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Collision, "Cheat.Collision");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Scale, "Cheat.Scale");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Gravity, "Cheat.Gravity");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Witness_Human, "Witness.Human");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Settings_Witness_Camera, "Witness.Camera");
 
 URealitySuspicionSettings::URealitySuspicionSettings()
 {
@@ -15,6 +17,26 @@ URealitySuspicionSettings::URealitySuspicionSettings()
 		FRealityCheatSuspicionRule(TAG_Reality_Settings_Scale, 20.0f),
 		FRealityCheatSuspicionRule(TAG_Reality_Settings_Gravity, 15.0f)
 	};
+	WitnessSuspicionRules = {
+		FRealityWitnessSuspicionRule(TAG_Reality_Settings_Witness_Human, 10.0f),
+		FRealityWitnessSuspicionRule(TAG_Reality_Settings_Witness_Camera, 15.0f)
+	};
+}
+
+bool URealitySuspicionSettings::FindWitnessSuspicion(const FGameplayTag WitnessType, float& OutSuspicionValue) const
+{
+	const FRealityWitnessSuspicionRule* MatchingRule = WitnessSuspicionRules.FindByPredicate(
+		[WitnessType](const FRealityWitnessSuspicionRule& Rule)
+		{
+			return Rule.WitnessType.IsValid() && Rule.WitnessType.MatchesTagExact(WitnessType);
+		});
+	if (!MatchingRule)
+	{
+		return false;
+	}
+
+	OutSuspicionValue = FMath::Clamp(MatchingRule->SuspicionValue, 0.0f, 100.0f);
+	return true;
 }
 
 bool URealitySuspicionSettings::FindBaseSuspicion(const FGameplayTag CheatTag, float& OutSuspicionValue) const
