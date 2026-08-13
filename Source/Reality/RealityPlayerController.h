@@ -7,6 +7,8 @@
 #include "RealityPlayerController.generated.h"
 
 class UInputMappingContext;
+class UDeveloperConsoleWidget;
+class UDeveloperModeComponent;
 class UUserWidget;
 
 /**
@@ -23,6 +25,17 @@ public:
 
 	/** Constructor */
 	ARealityPlayerController();
+
+	/** Shows the player-facing console for the supplied player-owned Developer Mode component. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Console")
+	void ShowDeveloperConsole(UDeveloperModeComponent* DeveloperModeComponent);
+
+	/** Hides the console and restores normal first-person input without pausing the world. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Console")
+	void HideDeveloperConsole();
+
+	UFUNCTION(BlueprintPure, Category = "Developer Console")
+	UDeveloperConsoleWidget* GetDeveloperConsoleWidget() const { return DeveloperConsoleWidget; }
 
 protected:
 
@@ -48,10 +61,29 @@ protected:
 
 	/** Gameplay initialization */
 	virtual void BeginPlay() override;
+	virtual void OnPossess(APawn* InPawn) override;
+	virtual void OnUnPossess() override;
 
 	/** Input mapping context setup */
 	virtual void SetupInputComponent() override;
 
 	/** Returns true if the player should use UMG touch controls */
 	bool ShouldUseTouchControls() const;
+
+private:
+	void BindDeveloperMode(APawn* InPawn);
+	void UnbindDeveloperMode();
+
+	UFUNCTION()
+	void HandleDeveloperModeChanged(bool bIsActive);
+
+	/** Permanent Widget Blueprint presentation with a native fallback for safe startup/tests. */
+	UPROPERTY(EditDefaultsOnly, Category = "Developer Console")
+	TSoftClassPtr<UDeveloperConsoleWidget> DeveloperConsoleWidgetClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UDeveloperConsoleWidget> DeveloperConsoleWidget;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UDeveloperModeComponent> BoundDeveloperModeComponent;
 };

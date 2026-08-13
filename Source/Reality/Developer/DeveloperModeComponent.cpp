@@ -62,10 +62,11 @@ void UDeveloperModeComponent::EnterDeveloperMode()
 	}
 
 	bDeveloperModeActive = true;
-	SetComponentTickEnabled(true);
+	SetComponentTickEnabled(false);
 	UE_LOG(LogReality, Log, TEXT("Developer Mode: Entered for '%s'."), *GetNameSafe(GetOwner()));
 	UpdateDeveloperFocus();
-	RefreshDebugReadout();
+	OnDeveloperModeChanged.Broadcast(true);
+	RefreshDeveloperPresentation();
 }
 
 void UDeveloperModeComponent::ExitDeveloperMode()
@@ -82,6 +83,7 @@ void UDeveloperModeComponent::ExitDeveloperMode()
 	SetComponentTickEnabled(false);
 	SetFocusedEditableComponent(nullptr);
 	ClearDebugReadout();
+	OnDeveloperModeChanged.Broadcast(false);
 	UE_LOG(LogReality, Log, TEXT("Developer Mode: Exited for '%s'."), *GetNameSafe(GetOwner()));
 }
 
@@ -141,7 +143,7 @@ bool UDeveloperModeComponent::ToggleFocusedCollisionModification()
 		{
 			CollisionModifiedTargets.AddUnique(EditableComponent);
 		}
-		RefreshDebugReadout();
+		RefreshDeveloperPresentation();
 	}
 	return bSucceeded;
 }
@@ -166,7 +168,7 @@ bool UDeveloperModeComponent::ApplyFocusedScaleModification(const ERealityScaleP
 	const bool bSucceeded = EditableComponent->ApplyScaleModification(Preset, InstigatingActor);
 	if (bSucceeded)
 	{
-		RefreshDebugReadout();
+		RefreshDeveloperPresentation();
 	}
 	return bSucceeded;
 }
@@ -188,7 +190,7 @@ bool UDeveloperModeComponent::RestoreFocusedScaleModification()
 	const bool bSucceeded = EditableComponent->RestoreScaleModification(InstigatingActor);
 	if (bSucceeded)
 	{
-		RefreshDebugReadout();
+		RefreshDeveloperPresentation();
 	}
 	return bSucceeded;
 }
@@ -229,10 +231,30 @@ bool UDeveloperModeComponent::CycleFocusedGravityModification()
 		}
 	}
 
-	const bool bSucceeded = EditableComponent->ApplyGravityModification(NextPreset, InstigatingActor);
+	return ApplyFocusedGravityModification(NextPreset);
+}
+
+bool UDeveloperModeComponent::ApplyFocusedGravityModification(const ERealityGravityPreset Preset)
+{
+	if (!bDeveloperModeActive)
+	{
+		return false;
+	}
+
+	URealityEditableComponent* EditableComponent = FocusedEditableComponent.Get();
+	AActor* InstigatingActor = GetOwner();
+	const FGameplayTag GravityTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"));
+	if (!IsValid(EditableComponent)
+		|| !IsValid(InstigatingActor)
+		|| !EditableComponent->SupportsCheat(GravityTag))
+	{
+		return false;
+	}
+
+	const bool bSucceeded = EditableComponent->ApplyGravityModification(Preset, InstigatingActor);
 	if (bSucceeded)
 	{
-		RefreshDebugReadout();
+		RefreshDeveloperPresentation();
 	}
 	return bSucceeded;
 }
@@ -254,7 +276,7 @@ bool UDeveloperModeComponent::RestoreFocusedGravityModification()
 	const bool bSucceeded = EditableComponent->RestoreGravityModification(InstigatingActor);
 	if (bSucceeded)
 	{
-		RefreshDebugReadout();
+		RefreshDeveloperPresentation();
 	}
 	return bSucceeded;
 }
@@ -289,7 +311,20 @@ void UDeveloperModeComponent::SetFocusedEditableComponent(URealityEditableCompon
 		OnDeveloperFocusGained.Broadcast(NewActor);
 	}
 
-	RefreshDebugReadout();
+	RefreshDeveloperPresentation();
+}
+
+void UDeveloperModeComponent::RefreshDeveloperPresentation()
+{
+	OnDeveloperConsoleRefresh.Broadcast();
+	if (bShowEngineeringReadout)
+	{
+		RefreshDebugReadout();
+	}
+	else
+	{
+		ClearDebugReadout();
+	}
 }
 
 URealityEditableComponent* UDeveloperModeComponent::FindEditableFromViewpoint()
@@ -483,10 +518,10 @@ void UDeveloperModeComponent::HandleFocusedActorDestroyed(AActor* DestroyedActor
 
 void UDeveloperModeComponent::HandleRealitySuspicionChanged(const float OldValue, const float NewValue)
 {
-	RefreshDebugReadout();
+	RefreshDeveloperPresentation();
 }
 
 void UDeveloperModeComponent::HandleRealityStateChanged(const ERealityState OldState, const ERealityState NewState)
 {
-	RefreshDebugReadout();
+	RefreshDeveloperPresentation();
 }

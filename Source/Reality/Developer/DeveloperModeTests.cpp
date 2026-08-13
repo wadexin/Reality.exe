@@ -98,12 +98,18 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 			{
 				return Mapping.Action == DeveloperModeAction && Mapping.Key == EKeys::F6;
 			});
+		const bool bHasF1Mapping = DeveloperMappingContext->GetMappings().ContainsByPredicate(
+			[DeveloperModeAction](const FEnhancedActionKeyMapping& Mapping)
+			{
+				return Mapping.Action == DeveloperModeAction && Mapping.Key == EKeys::F1;
+			});
 		const bool bHasCollisionMapping = DeveloperMappingContext->GetMappings().ContainsByPredicate(
 			[DeveloperCollisionAction](const FEnhancedActionKeyMapping& Mapping)
 			{
 				return Mapping.Action == DeveloperCollisionAction && Mapping.Key == EKeys::R;
 			});
 		TestTrue(TEXT("Developer Mode defaults to F6"), bHasF6Mapping);
+		TestFalse(TEXT("Reality leaves F1 unused"), bHasF1Mapping);
 		TestTrue(TEXT("The prototype Collision action defaults to R"), bHasCollisionMapping);
 		const FKey ExpectedScaleKeys[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five};
 		for (int32 ScaleActionIndex = 0; ScaleActionIndex < DeveloperScaleActions.Num(); ++ScaleActionIndex)
@@ -243,7 +249,7 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Editable-only developer targets need not implement IInteractable"), EditableActorA->Implements<UInteractable>());
 
 	TestTrue(TEXT("Toggle activates Developer Mode"), DeveloperComponent->ToggleDeveloperMode());
-	TestTrue(TEXT("Developer scanning Tick enables while mode is active"), DeveloperComponent->IsComponentTickEnabled());
+	TestFalse(TEXT("Console selection freezes after its one opening trace"), DeveloperComponent->IsComponentTickEnabled());
 	TestEqual(TEXT("An editable-only Actor gains developer focus"), DeveloperComponent->GetFocusedDeveloperActor(), static_cast<AActor*>(EditableActorA));
 	TestEqual(TEXT("Developer focus exposes the editable component"), DeveloperComponent->GetFocusedEditableComponent(), EditableActorA->EditableComponent.Get());
 	TestEqual(TEXT("Focus gained broadcasts exactly once"), EditableActorA->DeveloperFocusGainedCount, 1);
@@ -290,6 +296,9 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Developer Gravity Apply uses Cheat.Gravity"), EditableActorA->LastCheatEvent.CheatTag, GetGravityTag());
 	TestTrue(TEXT("Second Gravity cycle step invokes Zero"), DeveloperComponent->CycleFocusedGravityModification());
 	TestEqual(TEXT("Second Gravity cycle step is Zero"), EditableActorA->EditableComponent->GetCurrentGravityPreset(), ERealityGravityPreset::Zero);
+	TestTrue(TEXT("Console-style direct Gravity Normal succeeds"), DeveloperComponent->ApplyFocusedGravityModification(ERealityGravityPreset::Normal));
+	TestEqual(TEXT("Direct Gravity preset reaches the editable implementation"), EditableActorA->EditableComponent->GetCurrentGravityPreset(), ERealityGravityPreset::Normal);
+	TestTrue(TEXT("Console-style direct Gravity Zero succeeds"), DeveloperComponent->ApplyFocusedGravityModification(ERealityGravityPreset::Zero));
 	TestFalse(TEXT("Developer Zero Gravity disables the Low Tick"), EditableActorA->EditableComponent->IsComponentTickEnabled());
 	TestTrue(TEXT("Third Gravity cycle step invokes active Normal"), DeveloperComponent->CycleFocusedGravityModification());
 	TestEqual(TEXT("Third Gravity cycle step is Normal"), EditableActorA->EditableComponent->GetCurrentGravityPreset(), ERealityGravityPreset::Normal);

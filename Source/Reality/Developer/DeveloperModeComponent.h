@@ -10,6 +10,8 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperFocusGainedSignature, AActor*, FocusedActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperFocusLostSignature, AActor*, LostActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDeveloperModeChangedSignature, bool, bIsActive);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FDeveloperConsoleRefreshSignature);
 
 /**
  * Player-side shell for Developer Mode state, editable-object focus, and prototype cheat invocation.
@@ -34,6 +36,18 @@ public:
 	/** Draws the inspection trace in non-shipping builds. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Developer Mode|Debug")
 	bool bDrawDebugTrace = false;
+
+	/** Shows the legacy engineering text dump instead of relying solely on the player-facing console. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Developer Mode|Debug")
+	bool bShowEngineeringReadout = false;
+
+	/** Broadcast after Developer Mode opens or closes. */
+	UPROPERTY(BlueprintAssignable, Category = "Developer Mode|Events")
+	FDeveloperModeChangedSignature OnDeveloperModeChanged;
+
+	/** Broadcast after target or editable/Reality display data may have changed. */
+	UPROPERTY(BlueprintAssignable, Category = "Developer Mode|Events")
+	FDeveloperConsoleRefreshSignature OnDeveloperConsoleRefresh;
 
 	/** Broadcast when a Reality-editable Actor becomes the inspected developer target. */
 	UPROPERTY(BlueprintAssignable, Category = "Developer Mode|Focus")
@@ -87,6 +101,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Gravity")
 	bool CycleFocusedGravityModification();
 
+	/** Applies one explicit Gravity preset to the selected target. Intended for console buttons. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Gravity")
+	bool ApplyFocusedGravityModification(ERealityGravityPreset Preset);
+
 	/** Restores the focused target's exact captured gravity behavior. */
 	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Gravity")
 	bool RestoreFocusedGravityModification();
@@ -111,6 +129,9 @@ private:
 
 	/** Removes the prototype on-screen shell. */
 	void ClearDebugReadout() const;
+
+	/** Notifies presentation listeners and optionally refreshes the legacy engineering overlay. */
+	void RefreshDeveloperPresentation();
 
 	/** Clears focus when the focused Actor is destroyed. */
 	UFUNCTION()
