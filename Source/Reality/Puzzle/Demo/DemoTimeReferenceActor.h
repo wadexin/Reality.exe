@@ -26,6 +26,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> RotorMesh;
 
+	/** Collision-free baseline cadence marker carried by the authoritative rotating component. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> RotorTipPositive;
+
+	/** Mirrored collision-free baseline marker carried by the authoritative rotating component. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> RotorTipNegative;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UTextRenderComponent> ReferenceLabel;
 

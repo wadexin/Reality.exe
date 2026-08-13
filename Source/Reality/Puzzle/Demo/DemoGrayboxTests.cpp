@@ -6,6 +6,7 @@
 
 #include "AI/RealityWitnessComponent.h"
 #include "Developer/RealityEditableComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -65,6 +66,12 @@ bool FDemoGrayboxGlueTest::RunTest(const FString& Parameters)
 	ADemoTimeReferenceActor* ReferenceRotor = TestWorld->SpawnActor<ADemoTimeReferenceActor>();
 	TestTrue(TEXT("Editable rotor supports local Time"), EditableRotor->EditableComponent->SupportsCheat(FGameplayTag::RequestGameplayTag(TEXT("Cheat.Time"))));
 	TestNull(TEXT("Reference rotor is not a selectable Reality target"), ReferenceRotor->FindComponentByClass<URealityEditableComponent>());
+	TestTrue(TEXT("Editable positive marker follows the authoritative rotor"), EditableRotor->RotorTipPositive->GetAttachParent() == EditableRotor->RotorMesh.Get());
+	TestTrue(TEXT("Editable negative marker follows the authoritative rotor"), EditableRotor->RotorTipNegative->GetAttachParent() == EditableRotor->RotorMesh.Get());
+	TestTrue(TEXT("Reference positive marker follows the authoritative rotor"), ReferenceRotor->RotorTipPositive->GetAttachParent() == ReferenceRotor->RotorMesh.Get());
+	TestTrue(TEXT("Reference negative marker follows the authoritative rotor"), ReferenceRotor->RotorTipNegative->GetAttachParent() == ReferenceRotor->RotorMesh.Get());
+	TestEqual(TEXT("Editable cadence markers do not add collision"), EditableRotor->RotorTipPositive->GetCollisionEnabled(), ECollisionEnabled::NoCollision);
+	TestEqual(TEXT("Reference cadence markers do not add collision"), ReferenceRotor->RotorTipPositive->GetCollisionEnabled(), ECollisionEnabled::NoCollision);
 	EditableRotor->Tick(0.25f);
 	TestEqual(TEXT("Machinery consumes Actor-local Tick delta"), EditableRotor->AccumulatedTickSeconds, 0.25f);
 	ReferenceRotor->Tick(0.25f);
