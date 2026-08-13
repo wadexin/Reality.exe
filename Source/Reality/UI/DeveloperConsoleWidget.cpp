@@ -144,6 +144,17 @@ void UDeveloperConsoleWidget::BuildPrototypeLayout()
 	UButton* GravityZero = AddButton(GravitySection, TEXT("Zero")); GravityZero->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityZeroClicked);
 	GravityRestoreButton = AddButton(GravitySection, TEXT("Restore Gravity")); GravityRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityRestoreClicked);
 
+	MassSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MassSection"));
+	Body->AddChildToVerticalBox(MassSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
+	AddLabel(MassSection, TEXT("MASS"), 18, DeveloperConsoleStyle::Accent);
+	MassStateText = AddLabel(MassSection, TEXT("Modified: No\nPreset: 1.0x"), 14, DeveloperConsoleStyle::PrimaryText);
+	UButton* MassQuarter = AddButton(MassSection, TEXT("0.25x")); MassQuarter->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassQuarterClicked);
+	UButton* MassHalf = AddButton(MassSection, TEXT("0.5x")); MassHalf->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassHalfClicked);
+	UButton* MassOne = AddButton(MassSection, TEXT("1.0x")); MassOne->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassOneClicked);
+	UButton* MassDouble = AddButton(MassSection, TEXT("2.0x")); MassDouble->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassDoubleClicked);
+	UButton* MassQuadruple = AddButton(MassSection, TEXT("4.0x")); MassQuadruple->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassQuadrupleClicked);
+	MassRestoreButton = AddButton(MassSection, TEXT("Restore Mass")); MassRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassRestoreClicked);
+
 	RealityText = AddLabel(Body, TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable"), 14, DeveloperConsoleStyle::PrimaryText);
 	if (UVerticalBoxSlot* RealitySlot = Cast<UVerticalBoxSlot>(RealityText->Slot))
 	{
@@ -189,6 +200,7 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	const FGameplayTag CollisionTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Collision"));
 	const FGameplayTag ScaleTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"));
 	const FGameplayTag GravityTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"));
+	const FGameplayTag MassTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Mass"));
 
 	if (IsValid(Editable) && IsValid(Editable->GetOwner()))
 	{
@@ -205,9 +217,11 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	const bool bCollisionSupported = IsValid(Editable) && Editable->SupportsCheat(CollisionTag);
 	const bool bScaleSupported = IsValid(Editable) && Editable->SupportsCheat(ScaleTag);
 	const bool bGravitySupported = IsValid(Editable) && Editable->SupportsCheat(GravityTag);
+	const bool bMassSupported = IsValid(Editable) && Editable->SupportsCheat(MassTag);
 	CollisionSection->SetVisibility(bCollisionSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	ScaleSection->SetVisibility(bScaleSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	GravitySection->SetVisibility(bGravitySupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	MassSection->SetVisibility(bMassSupported ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 
 	if (bCollisionSupported)
 	{
@@ -232,6 +246,15 @@ void UDeveloperConsoleWidget::RefreshConsole()
 			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentGravityPreset())).ToString() : TEXT("Unknown"),
 			Editable->GetEligibleGravityComponentCount())));
 		GravityRestoreButton->SetVisibility(Editable->IsGravityModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (bMassSupported)
+	{
+		const UEnum* PresetEnum = StaticEnum<ERealityMassPreset>();
+		MassStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBodies: %d\nBaseline Mass: %.2f kg\nCurrent Mass: %.2f kg"),
+			Editable->IsMassModified() ? TEXT("Yes") : TEXT("No"),
+			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentMassPreset())).ToString() : TEXT("Unknown"),
+			Editable->GetEligibleMassComponentCount(), Editable->GetBaselineEffectiveMassKg(), Editable->GetCurrentEffectiveMassKg())));
+		MassRestoreButton->SetVisibility(Editable->IsMassModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
 	FString RealityDisplay = TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable");
@@ -297,6 +320,18 @@ bool UDeveloperConsoleWidget::ExecuteGravityRestore()
 	return IsValid(Component) && Component->RestoreFocusedGravityModification();
 }
 
+bool UDeveloperConsoleWidget::ExecuteMassPreset(const ERealityMassPreset Preset)
+{
+	UDeveloperModeComponent* Component = DeveloperModeComponent.Get();
+	return IsValid(Component) && Component->ApplyFocusedMassModification(Preset);
+}
+
+bool UDeveloperConsoleWidget::ExecuteMassRestore()
+{
+	UDeveloperModeComponent* Component = DeveloperModeComponent.Get();
+	return IsValid(Component) && Component->RestoreFocusedMassModification();
+}
+
 void UDeveloperConsoleWidget::HandleRefreshRequested() { RefreshConsole(); }
 void UDeveloperConsoleWidget::HandleCollisionClicked() { ExecuteCollisionToggle(); }
 void UDeveloperConsoleWidget::HandleScaleQuarterClicked() { ExecuteScalePreset(ERealityScalePreset::Quarter); }
@@ -309,3 +344,9 @@ void UDeveloperConsoleWidget::HandleGravityNormalClicked() { ExecuteGravityPrese
 void UDeveloperConsoleWidget::HandleGravityLowClicked() { ExecuteGravityPreset(ERealityGravityPreset::Low); }
 void UDeveloperConsoleWidget::HandleGravityZeroClicked() { ExecuteGravityPreset(ERealityGravityPreset::Zero); }
 void UDeveloperConsoleWidget::HandleGravityRestoreClicked() { ExecuteGravityRestore(); }
+void UDeveloperConsoleWidget::HandleMassQuarterClicked() { ExecuteMassPreset(ERealityMassPreset::Quarter); }
+void UDeveloperConsoleWidget::HandleMassHalfClicked() { ExecuteMassPreset(ERealityMassPreset::Half); }
+void UDeveloperConsoleWidget::HandleMassOneClicked() { ExecuteMassPreset(ERealityMassPreset::One); }
+void UDeveloperConsoleWidget::HandleMassDoubleClicked() { ExecuteMassPreset(ERealityMassPreset::Double); }
+void UDeveloperConsoleWidget::HandleMassQuadrupleClicked() { ExecuteMassPreset(ERealityMassPreset::Quadruple); }
+void UDeveloperConsoleWidget::HandleMassRestoreClicked() { ExecuteMassRestore(); }

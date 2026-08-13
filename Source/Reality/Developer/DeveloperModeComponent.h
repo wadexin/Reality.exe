@@ -109,6 +109,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Gravity")
 	bool RestoreFocusedGravityModification();
 
+	/** Applies a typed Mass preset to the selected target. Mass intentionally has no fallback hotkey. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Mass")
+	bool ApplyFocusedMassModification(ERealityMassPreset Preset);
+
+	/** Restores the selected target's exact captured mass configuration. */
+	UFUNCTION(BlueprintCallable, Category = "Developer Mode|Mass")
+	bool RestoreFocusedMassModification();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

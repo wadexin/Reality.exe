@@ -281,6 +281,51 @@ bool UDeveloperModeComponent::RestoreFocusedGravityModification()
 	return bSucceeded;
 }
 
+bool UDeveloperModeComponent::ApplyFocusedMassModification(const ERealityMassPreset Preset)
+{
+	if (!bDeveloperModeActive)
+	{
+		return false;
+	}
+
+	URealityEditableComponent* EditableComponent = FocusedEditableComponent.Get();
+	AActor* InstigatingActor = GetOwner();
+	const FGameplayTag MassTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Mass"));
+	if (!IsValid(EditableComponent) || !IsValid(InstigatingActor) || !EditableComponent->SupportsCheat(MassTag))
+	{
+		return false;
+	}
+
+	const bool bSucceeded = EditableComponent->ApplyMassModification(Preset, InstigatingActor);
+	if (bSucceeded)
+	{
+		RefreshDeveloperPresentation();
+	}
+	return bSucceeded;
+}
+
+bool UDeveloperModeComponent::RestoreFocusedMassModification()
+{
+	if (!bDeveloperModeActive)
+	{
+		return false;
+	}
+
+	URealityEditableComponent* EditableComponent = FocusedEditableComponent.Get();
+	AActor* InstigatingActor = GetOwner();
+	if (!IsValid(EditableComponent) || !IsValid(InstigatingActor))
+	{
+		return false;
+	}
+
+	const bool bSucceeded = EditableComponent->RestoreMassModification(InstigatingActor);
+	if (bSucceeded)
+	{
+		RefreshDeveloperPresentation();
+	}
+	return bSucceeded;
+}
+
 void UDeveloperModeComponent::SetFocusedEditableComponent(URealityEditableComponent* NewEditableComponent)
 {
 	AActor* NewActor = IsValid(NewEditableComponent) ? NewEditableComponent->GetOwner() : nullptr;

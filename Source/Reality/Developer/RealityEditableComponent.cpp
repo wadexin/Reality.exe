@@ -5,12 +5,14 @@
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
 #include "NativeGameplayTags.h"
+#include "PhysicsEngine/BodyInstance.h"
 #include "Reality.h"
 #include "RealitySystem/RealityManagerSubsystem.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Collision, "Cheat.Collision");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Scale, "Cheat.Scale");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Gravity, "Cheat.Gravity");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Reality_Cheat_Mass, "Cheat.Mass");
 
 namespace RealityScale
 {
@@ -71,6 +73,28 @@ namespace RealityGravity
 		default:
 			return TEXT("Invalid");
 		}
+	}
+}
+
+namespace RealityMass
+{
+	bool TryGetMultiplier(const ERealityMassPreset Preset, float& OutMultiplier)
+	{
+		switch (Preset)
+		{
+		case ERealityMassPreset::Quarter: OutMultiplier = 0.25f; return true;
+		case ERealityMassPreset::Half: OutMultiplier = 0.5f; return true;
+		case ERealityMassPreset::One: OutMultiplier = 1.0f; return true;
+		case ERealityMassPreset::Double: OutMultiplier = 2.0f; return true;
+		case ERealityMassPreset::Quadruple: OutMultiplier = 4.0f; return true;
+		default: return false;
+		}
+	}
+
+	FString GetPresetLabel(const ERealityMassPreset Preset)
+	{
+		float Multiplier = 0.0f;
+		return TryGetMultiplier(Preset, Multiplier) ? FString::Printf(TEXT("%gx"), Multiplier) : TEXT("Invalid");
 	}
 }
 
@@ -225,6 +249,7 @@ bool URealityEditableComponent::RestoreCollisionModification(AActor* Instigating
 			++RestoredComponentCount;
 		}
 	}
+	ReapplyActiveMassPreset();
 
 	OriginalCollisionStates.Reset();
 	bCollisionModified = false;
@@ -290,6 +315,7 @@ bool URealityEditableComponent::ApplyScaleModification(const ERealityScalePreset
 	}
 
 	Owner->SetActorScale3D(NewScale);
+	ReapplyActiveMassPreset();
 	CurrentScalePreset = Preset;
 	const FRealityCheatEvent CheatEvent(Owner, TAG_Reality_Cheat_Scale, InstigatingActor, ERealityCheatOperation::Apply);
 	EmitRealityCheatEvent(CheatEvent);
@@ -326,6 +352,7 @@ bool URealityEditableComponent::RestoreScaleModification(AActor* InstigatingActo
 	}
 
 	Owner->SetActorScale3D(OriginalScale);
+	ReapplyActiveMassPreset();
 	const FVector RestoredScale = OriginalScale;
 	bScaleModified = false;
 	CurrentScalePreset = ERealityScalePreset::One;
@@ -517,6 +544,188 @@ int32 URealityEditableComponent::GetEligibleGravityComponentCount() const
 	return EligibleComponentCount;
 }
 
+bool URealityEditableComponent::ApplyMassModification(const ERealityMassPreset Preset, AActor* InstigatingActor)
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !SupportsCheat(TAG_Reality_Cheat_Mass))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Mass: Apply rejected for '%s': invalid owner or unsupported Cheat.Mass."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	float Multiplier = 0.0f;
+	if (!RealityMass::TryGetMultiplier(Preset, Multiplier))
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Mass: Apply rejected for '%s' because preset value %d is invalid."), *GetNameSafe(Owner), static_cast<uint8>(Preset));
+		return false;
+	}
+	if (bMassModified && CurrentMassPreset == Preset)
+	{
+		return false;
+	}
+	if (!bMassModified)
+	{
+		if (Preset == ERealityMassPreset::One)
+		{
+			return false;
+		}
+
+		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
+		Owner->GetComponents(PrimitiveComponents, false);
+		OriginalMassStates.Reset(PrimitiveComponents.Num());
+		for (UPrimitiveComponent* Primitive : PrimitiveComponents)
+		{
+			FBodyInstance* BodyInstance = IsValid(Primitive) ? Primitive->GetBodyInstance() : nullptr;
+			if (Primitive && Primitive->GetOwner() == Owner && Primitive->IsAnySimulatingPhysics() && BodyInstance)
+			{
+				const float EffectiveMass = Primitive->GetMass();
+				if (FMath::IsFinite(EffectiveMass) && EffectiveMass > 0.0f)
+				{
+					FRealityOriginalMassState& State = OriginalMassStates.AddDefaulted_GetRef();
+					State.PrimitiveComponent = Primitive;
+					State.BaselineEffectiveMassKg = EffectiveMass;
+					State.OriginalMassScale = BodyInstance->MassScale;
+					State.OriginalMassOverrideKg = BodyInstance->GetMassOverride();
+					State.bOriginallyOverrodeMass = BodyInstance->bOverrideMass;
+				}
+			}
+		}
+		if (OriginalMassStates.IsEmpty())
+		{
+			UE_LOG(LogReality, Warning, TEXT("Reality Mass: Apply failed for '%s' because it has no directly owned simulated PrimitiveComponents with valid mass."), *GetNameSafe(Owner));
+			return false;
+		}
+		bMassModified = true;
+	}
+
+	CurrentMassPreset = Preset;
+	ReapplyActiveMassPreset();
+	if (!bMassModified)
+	{
+		return false;
+	}
+
+	EmitRealityCheatEvent(FRealityCheatEvent(Owner, TAG_Reality_Cheat_Mass, InstigatingActor, ERealityCheatOperation::Apply));
+	UE_LOG(LogReality, Log, TEXT("Reality Mass: Set '%s' to %s across %d body component(s). Baseline=%.3fkg Current=%.3fkg."),
+		*GetNameSafe(Owner), *RealityMass::GetPresetLabel(Preset), OriginalMassStates.Num(), GetBaselineEffectiveMassKg(), GetCurrentEffectiveMassKg());
+	return true;
+}
+
+bool URealityEditableComponent::RestoreMassModification(AActor* InstigatingActor)
+{
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner) || !bMassModified)
+	{
+		return false;
+	}
+
+	int32 RestoredCount = 0;
+	for (const FRealityOriginalMassState& State : OriginalMassStates)
+	{
+		UPrimitiveComponent* Primitive = State.PrimitiveComponent.Get();
+		if (IsValid(Primitive) && Primitive->GetOwner() == Owner)
+		{
+			Primitive->SetMassScale(NAME_None, State.OriginalMassScale);
+			Primitive->SetMassOverrideInKg(NAME_None, State.OriginalMassOverrideKg, State.bOriginallyOverrodeMass);
+			++RestoredCount;
+		}
+	}
+
+	OriginalMassStates.Reset();
+	bMassModified = false;
+	CurrentMassPreset = ERealityMassPreset::One;
+	if (RestoredCount == 0)
+	{
+		UE_LOG(LogReality, Warning, TEXT("Reality Mass: Restore for '%s' found no surviving components; state cleared without an event."), *GetNameSafe(Owner));
+		return false;
+	}
+
+	EmitRealityCheatEvent(FRealityCheatEvent(Owner, TAG_Reality_Cheat_Mass, InstigatingActor, ERealityCheatOperation::Restore));
+	UE_LOG(LogReality, Log, TEXT("Reality Mass: Restored exact authored mass configuration for '%s' on %d component(s)."), *GetNameSafe(Owner), RestoredCount);
+	return true;
+}
+
+void URealityEditableComponent::ReapplyActiveMassPreset()
+{
+	if (!bMassModified)
+	{
+		return;
+	}
+	float Multiplier = 0.0f;
+	if (!RealityMass::TryGetMultiplier(CurrentMassPreset, Multiplier))
+	{
+		return;
+	}
+	AActor* Owner = GetOwner();
+	for (int32 Index = OriginalMassStates.Num() - 1; Index >= 0; --Index)
+	{
+		UPrimitiveComponent* Primitive = OriginalMassStates[Index].PrimitiveComponent.Get();
+		if (!IsValid(Primitive) || Primitive->GetOwner() != Owner)
+		{
+			OriginalMassStates.RemoveAtSwap(Index);
+			continue;
+		}
+		Primitive->SetMassOverrideInKg(NAME_None, FMath::Max(0.001f, OriginalMassStates[Index].BaselineEffectiveMassKg * Multiplier), true);
+	}
+	if (OriginalMassStates.IsEmpty())
+	{
+		bMassModified = false;
+		CurrentMassPreset = ERealityMassPreset::One;
+	}
+}
+
+int32 URealityEditableComponent::GetEligibleMassComponentCount() const
+{
+	const AActor* Owner = GetOwner();
+	if (!IsValid(Owner)) return 0;
+	TInlineComponentArray<UPrimitiveComponent*> Components;
+	Owner->GetComponents(Components, false);
+	int32 EligibleCount = 0;
+	for (const UPrimitiveComponent* Primitive : Components)
+	{
+		if (IsValid(Primitive) && Primitive->GetOwner() == Owner && Primitive->IsAnySimulatingPhysics() && Primitive->GetBodyInstance())
+		{
+			++EligibleCount;
+		}
+	}
+	return EligibleCount;
+}
+
+float URealityEditableComponent::GetBaselineEffectiveMassKg() const
+{
+	if (!bMassModified) return GetCurrentEffectiveMassKg();
+	float Total = 0.0f;
+	for (const FRealityOriginalMassState& State : OriginalMassStates)
+	{
+		if (State.PrimitiveComponent.IsValid()) Total += State.BaselineEffectiveMassKg;
+	}
+	return Total;
+}
+
+float URealityEditableComponent::GetCurrentEffectiveMassKg() const
+{
+	const AActor* Owner = GetOwner();
+	if (!IsValid(Owner)) return 0.0f;
+	float Total = 0.0f;
+	if (bMassModified)
+	{
+		float Multiplier = 0.0f;
+		if (!RealityMass::TryGetMultiplier(CurrentMassPreset, Multiplier)) return 0.0f;
+		for (const FRealityOriginalMassState& State : OriginalMassStates)
+		{
+			if (State.PrimitiveComponent.IsValid()) Total += State.BaselineEffectiveMassKg * Multiplier;
+		}
+		return Total;
+	}
+	TInlineComponentArray<UPrimitiveComponent*> Components;
+	Owner->GetComponents(Components, false);
+	for (const UPrimitiveComponent* Primitive : Components)
+	{
+		if (IsValid(Primitive) && Primitive->GetOwner() == Owner && Primitive->IsAnySimulatingPhysics() && Primitive->GetBodyInstance()) Total += Primitive->GetMass();
+	}
+	return Total;
+}
+
 void URealityEditableComponent::EmitRealityCheatEvent(const FRealityCheatEvent& CheatEvent)
 {
 	if (UWorld* World = GetWorld())
@@ -540,7 +749,7 @@ void URealityEditableComponent::EmitRealityCheatEvent(const FRealityCheatEvent& 
 FString URealityEditableComponent::GetEditableDebugDescription() const
 {
 	return FString::Printf(
-		TEXT("Actor='%s' SupportedCheats=[%s] ObjectTags=[%s] CollisionModified=%s ScaleModified=%s ScalePreset=%s OriginalScale=%s CurrentScale=%s GravityModified=%s GravityPreset=%s EligibleGravityComponents=%d"),
+		TEXT("Actor='%s' SupportedCheats=[%s] ObjectTags=[%s] CollisionModified=%s ScaleModified=%s ScalePreset=%s OriginalScale=%s CurrentScale=%s GravityModified=%s GravityPreset=%s EligibleGravityComponents=%d MassModified=%s MassPreset=%s BaselineMass=%.3fkg CurrentMass=%.3fkg EligibleMassComponents=%d"),
 		*GetNameSafe(GetOwner()),
 		*SupportedCheats.ToStringSimple(),
 		*ObjectTags.ToStringSimple(),
@@ -551,7 +760,12 @@ FString URealityEditableComponent::GetEditableDebugDescription() const
 		IsValid(GetOwner()) ? *GetOwner()->GetActorScale3D().ToString() : TEXT("Invalid"),
 		bGravityModified ? TEXT("true") : TEXT("false"),
 		RealityGravity::GetPresetLabel(CurrentGravityPreset),
-		GetEligibleGravityComponentCount());
+		GetEligibleGravityComponentCount(),
+		bMassModified ? TEXT("true") : TEXT("false"),
+		*RealityMass::GetPresetLabel(CurrentMassPreset),
+		GetBaselineEffectiveMassKg(),
+		GetCurrentEffectiveMassKg(),
+		GetEligibleMassComponentCount());
 }
 
 void URealityEditableComponent::LogEditableConfiguration() const

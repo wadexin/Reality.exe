@@ -33,6 +33,17 @@ enum class ERealityGravityPreset : uint8
 	Zero
 };
 
+/** Controlled baseline-relative multipliers available to the Mass Reality modification. */
+UENUM(BlueprintType)
+enum class ERealityMassPreset : uint8
+{
+	Quarter UMETA(DisplayName = "0.25x"),
+	Half UMETA(DisplayName = "0.5x"),
+	One UMETA(DisplayName = "1.0x"),
+	Double UMETA(DisplayName = "2.0x"),
+	Quadruple UMETA(DisplayName = "4.0x")
+};
+
 /** Exact collision state captured for one owner-local primitive during an active modification cycle. */
 USTRUCT()
 struct FRealityOriginalCollisionState
@@ -71,6 +82,21 @@ struct FRealityOriginalGravityState
 	TWeakObjectPtr<UPrimitiveComponent> PrimitiveComponent;
 
 	bool bGravityEnabled = false;
+};
+
+/** Exact authored mass configuration and effective baseline captured for one simulated primitive. */
+USTRUCT()
+struct FRealityOriginalMassState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TWeakObjectPtr<UPrimitiveComponent> PrimitiveComponent;
+
+	float BaselineEffectiveMassKg = 0.0f;
+	float OriginalMassScale = 1.0f;
+	float OriginalMassOverrideKg = 100.0f;
+	bool bOriginallyOverrodeMass = false;
 };
 
 /**
@@ -157,6 +183,34 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Gravity")
 	int32 GetEligibleGravityComponentCount() const;
 
+	/** Applies a controlled multiplier to each simulated primitive's captured effective mass. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Mass")
+	bool ApplyMassModification(ERealityMassPreset Preset, AActor* InstigatingActor);
+
+	/** Restores each surviving primitive's exact authored MassScale and mass-override configuration. */
+	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Mass")
+	bool RestoreMassModification(AActor* InstigatingActor);
+
+	/** Returns whether an explicit Mass cycle is active, including active 1.0x. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Mass")
+	bool IsMassModified() const { return bMassModified; }
+
+	/** Returns the active Mass preset, or 1.0x while unmodified. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Mass")
+	ERealityMassPreset GetCurrentMassPreset() const { return CurrentMassPreset; }
+
+	/** Counts directly owned PrimitiveComponents that currently simulate physics. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Mass")
+	int32 GetEligibleMassComponentCount() const;
+
+	/** Returns the sum of captured effective masses for surviving bodies, or current eligible mass while inactive. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Mass")
+	float GetBaselineEffectiveMassKg() const;
+
+	/** Returns the aggregate current effective mass of directly owned eligible/captured bodies. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Mass")
+	float GetCurrentEffectiveMassKg() const;
+
 	/** Returns a concise description of the owner and its configured tags for development inspection. */
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable|Debug")
 	FString GetEditableDebugDescription() const;
@@ -177,6 +231,9 @@ protected:
 private:
 	/** Broadcasts one successful property event and submits that same event to the world Reality Manager. */
 	void EmitRealityCheatEvent(const FRealityCheatEvent& CheatEvent);
+
+	/** Reasserts active temporary mass overrides after Chaos geometry mass recalculation. Emits no event. */
+	void ReapplyActiveMassPreset();
 
 	/** Cheat properties this actor supports. Configure these on the component's Blueprint or instance defaults. */
 	UPROPERTY(EditAnywhere, Category = "Reality|Editable", meta = (Categories = "Cheat"))
@@ -212,4 +269,14 @@ private:
 
 	UPROPERTY(Transient)
 	bool bGravityModified = false;
+
+	/** Per-component authored mass configuration and effective baseline captured once per Mass cycle. */
+	UPROPERTY(Transient)
+	TArray<FRealityOriginalMassState> OriginalMassStates;
+
+	UPROPERTY(Transient)
+	ERealityMassPreset CurrentMassPreset = ERealityMassPreset::One;
+
+	UPROPERTY(Transient)
+	bool bMassModified = false;
 };

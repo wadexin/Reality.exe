@@ -55,6 +55,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
 	bool ExecuteGravityRestore();
 
+	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
+	bool ExecuteMassPreset(ERealityMassPreset Preset);
+
+	UFUNCTION(BlueprintCallable, Category = "Developer Console|Actions")
+	bool ExecuteMassRestore();
+
 protected:
 	virtual bool Initialize() override;
 	virtual void NativeDestruct() override;
@@ -78,6 +84,12 @@ private:
 	UFUNCTION() void HandleGravityLowClicked();
 	UFUNCTION() void HandleGravityZeroClicked();
 	UFUNCTION() void HandleGravityRestoreClicked();
+	UFUNCTION() void HandleMassQuarterClicked();
+	UFUNCTION() void HandleMassHalfClicked();
+	UFUNCTION() void HandleMassOneClicked();
+	UFUNCTION() void HandleMassDoubleClicked();
+	UFUNCTION() void HandleMassQuadrupleClicked();
+	UFUNCTION() void HandleMassRestoreClicked();
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UDeveloperModeComponent> DeveloperModeComponent;
@@ -94,5 +106,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> GravitySection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> GravityStateText;
 	UPROPERTY(Transient) TObjectPtr<UButton> GravityRestoreButton;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> MassSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> MassStateText;
+	UPROPERTY(Transient) TObjectPtr<UButton> MassRestoreButton;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RealityText;
 };
