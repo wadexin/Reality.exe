@@ -9,6 +9,7 @@
 
 class UInputComponent;
 class USkeletalMeshComponent;
+class UStaticMeshComponent;
 class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
@@ -32,6 +33,14 @@ class ARealityCharacter : public ACharacter
 	/** Pawn mesh: first person view (arms; seen only by self) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* FirstPersonMesh;
+
+	/** Owner-only, visual facility-issued access module on the left forearm. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* DeveloperAccessHousing;
+
+	/** Restrained status light for the visual Developer Access module. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* DeveloperAccessIndicator;
 
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
@@ -118,6 +127,9 @@ public:
 	ARealityCharacter();
 
 protected:
+	/** Applies owner-only visible-body presentation after Blueprint mesh assets are initialized. */
+	virtual void BeginPlay() override;
+
 	/** Rebuilds per-Pawn mappings so cooked Blueprint instances reference their runtime Input Actions. */
 	void RebuildRuntimeInputMappings();
 

@@ -5,6 +5,10 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Developer/DeveloperModeComponent.h"
 #include "Developer/DeveloperTargetPresentationComponent.h"
 #include "Audio/DeveloperAudioFeedbackComponent.h"
@@ -32,6 +36,52 @@ ARealityCharacter::ARealityCharacter()
 	FirstPersonMesh->SetOnlyOwnerSee(true);
 	FirstPersonMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 	FirstPersonMesh->SetCollisionProfileName(FName("NoCollision"));
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TechnicianLowerMaterial(TEXT("/Game/Characters/Reality/Materials/MI_RLT_Technician_Lower.MI_RLT_Technician_Lower"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TechnicianUpperMaterial(TEXT("/Game/Characters/Reality/Materials/MI_RLT_Technician_Upper.MI_RLT_Technician_Upper"));
+	if (TechnicianLowerMaterial.Succeeded() && TechnicianUpperMaterial.Succeeded())
+	{
+		GetMesh()->SetMaterial(0, TechnicianLowerMaterial.Object);
+		GetMesh()->SetMaterial(1, TechnicianUpperMaterial.Object);
+		FirstPersonMesh->SetMaterial(0, TechnicianLowerMaterial.Object);
+		FirstPersonMesh->SetMaterial(1, TechnicianUpperMaterial.Object);
+	}
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> HousingMaterial(TEXT("/Game/Reality/Environment/Materials/Instances/MI_RLT_Metal_Charcoal.MI_RLT_Metal_Charcoal"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> IndicatorMaterial(TEXT("/Game/Reality/Environment/Materials/Instances/MI_RLT_Indicator_Managed.MI_RLT_Indicator_Managed"));
+
+	DeveloperAccessHousing = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Developer Access Housing"));
+	DeveloperAccessHousing->SetupAttachment(FirstPersonMesh, TEXT("lowerarm_l"));
+	DeveloperAccessHousing->SetRelativeLocation(FVector(12.0f, -2.5f, 4.0f));
+	DeveloperAccessHousing->SetRelativeScale3D(FVector(0.11f, 0.055f, 0.02f));
+	DeveloperAccessHousing->SetOnlyOwnerSee(true);
+	DeveloperAccessHousing->SetCollisionProfileName(TEXT("NoCollision"));
+	DeveloperAccessHousing->SetCastShadow(false);
+	DeveloperAccessHousing->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+
+	DeveloperAccessIndicator = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Developer Access Indicator"));
+	DeveloperAccessIndicator->SetupAttachment(FirstPersonMesh, TEXT("lowerarm_l"));
+	DeveloperAccessIndicator->SetRelativeLocation(FVector(12.0f, -2.5f, 5.15f));
+	DeveloperAccessIndicator->SetRelativeScale3D(FVector(0.025f, 0.012f, 0.005f));
+	DeveloperAccessIndicator->SetOnlyOwnerSee(true);
+	DeveloperAccessIndicator->SetCollisionProfileName(TEXT("NoCollision"));
+	DeveloperAccessIndicator->SetCastShadow(false);
+	DeveloperAccessIndicator->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+
+	if (CubeMesh.Succeeded())
+	{
+		DeveloperAccessHousing->SetStaticMesh(CubeMesh.Object);
+		DeveloperAccessIndicator->SetStaticMesh(CubeMesh.Object);
+	}
+	if (HousingMaterial.Succeeded())
+	{
+		DeveloperAccessHousing->SetMaterial(0, HousingMaterial.Object);
+	}
+	if (IndicatorMaterial.Succeeded())
+	{
+		DeveloperAccessIndicator->SetMaterial(0, IndicatorMaterial.Object);
+	}
 
 	// Create the Camera Component	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
@@ -100,13 +150,24 @@ ARealityCharacter::ARealityCharacter()
 
 	// configure the character comps
 	GetMesh()->SetOwnerNoSee(true);
+	GetMesh()->SetCastHiddenShadow(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	FirstPersonMesh->SetCastShadow(false);
 
 	GetCapsuleComponent()->SetCapsuleSize(34.0f, 96.0f);
 
 	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
+}
+
+void ARealityCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// The owner sees the copied full body without the camera-intersecting head.
+	// The owner-hidden world mesh remains intact and supplies the complete shadow.
+	FirstPersonMesh->HideBoneByName(TEXT("head"), EPhysBodyOp::PBO_None);
 }
 
 void ARealityCharacter::PawnClientRestart()
