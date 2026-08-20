@@ -118,6 +118,7 @@ void ARealityCharacter::PawnClientRestart()
 		UE_LOG(LogReality, Error, TEXT("'%s' is missing an Interaction or Developer Mapping Context."), *GetNameSafe(this));
 		return;
 	}
+	RebuildRuntimeInputMappings();
 
 	if (const APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
@@ -136,6 +137,24 @@ void ARealityCharacter::PawnClientRestart()
 			}
 		}
 	}
+}
+
+void ARealityCharacter::RebuildRuntimeInputMappings()
+{
+	InteractionMappingContext->UnmapAll();
+	InteractionMappingContext->MapKey(InteractionAction, EKeys::E);
+
+	DeveloperMappingContext->UnmapAll();
+	DeveloperMappingContext->MapKey(DeveloperModeAction, EKeys::F6);
+	DeveloperMappingContext->MapKey(DeveloperCollisionAction, EKeys::R);
+	const FKey ScaleKeys[] = {EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five};
+	for (int32 ScaleActionIndex = 0; ScaleActionIndex < DeveloperScaleActions.Num(); ++ScaleActionIndex)
+	{
+		DeveloperMappingContext->MapKey(DeveloperScaleActions[ScaleActionIndex], ScaleKeys[ScaleActionIndex]);
+	}
+	DeveloperMappingContext->MapKey(DeveloperScaleRestoreAction, EKeys::T);
+	DeveloperMappingContext->MapKey(DeveloperGravityCycleAction, EKeys::G);
+	DeveloperMappingContext->MapKey(DeveloperGravityRestoreAction, EKeys::H);
 }
 
 void ARealityCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

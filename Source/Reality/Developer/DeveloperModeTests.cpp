@@ -231,6 +231,30 @@ bool FDeveloperModeComponentTest::RunTest(const FString& Parameters)
 	WorldContext.SetCurrentWorld(TestWorld);
 	TestWorld->InitializeActorsForPlay(FURL());
 
+	UClass* RuntimeFirstPersonClass = LoadClass<ARealityCharacter>(nullptr, TEXT("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter.BP_FirstPersonCharacter_C"));
+	ARealityCharacter* RuntimeFirstPerson = RuntimeFirstPersonClass
+		? TestWorld->SpawnActor<ARealityCharacter>(RuntimeFirstPersonClass, FVector::ZeroVector, FRotator::ZeroRotator)
+		: nullptr;
+	TestNotNull(TEXT("A runtime First Person character can be spawned"), RuntimeFirstPerson);
+	if (RuntimeFirstPerson)
+	{
+		RuntimeFirstPerson->PawnClientRestart();
+		TestTrue(
+			TEXT("Runtime F6 mapping references the Pawn's Input Action"),
+			RuntimeFirstPerson->GetDeveloperMappingContext()->GetMappings().ContainsByPredicate(
+				[RuntimeFirstPerson](const FEnhancedActionKeyMapping& Mapping)
+				{
+					return Mapping.Action == RuntimeFirstPerson->GetDeveloperModeAction() && Mapping.Key == EKeys::F6;
+				}));
+		TestTrue(
+			TEXT("Runtime E mapping references the Pawn's Input Action"),
+			RuntimeFirstPerson->GetInteractionMappingContext()->GetMappings().ContainsByPredicate(
+				[RuntimeFirstPerson](const FEnhancedActionKeyMapping& Mapping)
+				{
+					return Mapping.Action == RuntimeFirstPerson->GetInteractionAction() && Mapping.Key == EKeys::E;
+				}));
+	}
+
 	AActor* PlayerActor = TestWorld->SpawnActor<AActor>(FVector::ZeroVector, FRotator::ZeroRotator);
 	UDeveloperModeComponent* DeveloperComponent = NewObject<UDeveloperModeComponent>(PlayerActor, TEXT("DeveloperModeComponent"));
 	UDeveloperTargetPresentationComponent* PresentationComponent = NewObject<UDeveloperTargetPresentationComponent>(PlayerActor, TEXT("DeveloperTargetPresentationComponent"));

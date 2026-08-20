@@ -7,10 +7,13 @@
 #include "AI/RealityWitnessComponent.h"
 #include "Developer/RealityEditableComponent.h"
 #include "Components/AudioComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/PackageName.h"
 #include "Puzzle/Demo/DemoEditableActor.h"
 #include "Puzzle/Demo/DemoExitTerminal.h"
 #include "Puzzle/Demo/DemoSensorFailurePanel.h"
@@ -43,6 +46,7 @@ bool FDemoGrayboxGlueTest::RunTest(const FString& Parameters)
 
 	ADemoEditableActor* Editable = TestWorld->SpawnActor<ADemoEditableActor>();
 	Editable->ConfigureDemoTarget(FText::FromString(TEXT("Test Prop")), true, true, true, true, true, false, true, false, true);
+	TestEqual(TEXT("Configured target exposes its player-facing name"), Editable->EditableComponent->GetPlayerFacingName().ToString(), FString(TEXT("Test Prop")));
 	TestTrue(TEXT("Configured target exposes Collision"), Editable->EditableComponent->SupportsCheat(FGameplayTag::RequestGameplayTag(TEXT("Cheat.Collision"))));
 	TestTrue(TEXT("Configured target exposes Scale"), Editable->EditableComponent->SupportsCheat(FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"))));
 	TestTrue(TEXT("Configured target exposes Gravity"), Editable->EditableComponent->SupportsCheat(FGameplayTag::RequestGameplayTag(TEXT("Cheat.Gravity"))));
@@ -63,7 +67,8 @@ bool FDemoGrayboxGlueTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Panel owns only SensorFailure"), SensorPanel->ContextComponent->GetContextTags().HasTagExact(FGameplayTag::RequestGameplayTag(TEXT("Context.SensorFailure"))));
 
 	ADemoTimeMachineryActor* EditableRotor = TestWorld->SpawnActor<ADemoTimeMachineryActor>();
-	EditableRotor->ConfigureTimeMachinery(FText::FromString(TEXT("Editable Rotor")), 90.0f);
+	EditableRotor->ConfigureTimeMachinery(FText::FromString(TEXT("Editable Rotor")), 720.0f);
+	TestEqual(TEXT("Configured machinery exposes its player-facing name"), EditableRotor->EditableComponent->GetPlayerFacingName().ToString(), FString(TEXT("Editable Rotor")));
 	ADemoTimeReferenceActor* ReferenceRotor = TestWorld->SpawnActor<ADemoTimeReferenceActor>();
 	if (!EditableRotor->HasActorBegunPlay()) EditableRotor->DispatchBeginPlay();
 	if (!ReferenceRotor->HasActorBegunPlay()) ReferenceRotor->DispatchBeginPlay();
@@ -73,10 +78,31 @@ bool FDemoGrayboxGlueTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Editable negative marker follows the authoritative rotor"), EditableRotor->RotorTipNegative->GetAttachParent() == EditableRotor->RotorMesh.Get());
 	TestTrue(TEXT("Reference positive marker follows the authoritative rotor"), ReferenceRotor->RotorTipPositive->GetAttachParent() == ReferenceRotor->RotorMesh.Get());
 	TestTrue(TEXT("Reference negative marker follows the authoritative rotor"), ReferenceRotor->RotorTipNegative->GetAttachParent() == ReferenceRotor->RotorMesh.Get());
+	TestEqual(TEXT("Primary light curtain spans passage width"), EditableRotor->PrimaryScannerPlane->GetRelativeScale3D().Y, 6.3);
+	TestEqual(TEXT("Primary light curtain spans floor to ceiling"), EditableRotor->PrimaryScannerPlane->GetRelativeScale3D().Z, 3.0);
+	TestEqual(TEXT("Visible curtain matches detection width"), EditableRotor->PrimaryScannerDetection->GetScaledBoxExtent().Y, 315.0);
+	TestEqual(TEXT("Visible curtain matches detection height"), EditableRotor->PrimaryScannerDetection->GetScaledBoxExtent().Z, 150.0);
+	TestEqual(TEXT("Scanner planes break the baseline direct-run timing alignment"), EditableRotor->SecondaryScannerPlane->GetRelativeLocation().X - EditableRotor->PrimaryScannerPlane->GetRelativeLocation().X, 300.0);
+	TestEqual(TEXT("Visible scanner planes never physically block traversal"), EditableRotor->PrimaryScannerPlane->GetCollisionEnabled(), ECollisionEnabled::NoCollision);
+	TestEqual(TEXT("Scanner detection overlaps Pawn"), EditableRotor->PrimaryScannerDetection->GetCollisionResponseToChannel(ECC_Pawn), ECR_Overlap);
+	TestEqual(TEXT("Scanner detection ignores Developer Visibility traces"), EditableRotor->PrimaryScannerDetection->GetCollisionResponseToChannel(ECC_Visibility), ECR_Ignore);
+	TestEqual(TEXT("Scanner detection ignores Camera traces"), EditableRotor->PrimaryScannerDetection->GetCollisionResponseToChannel(ECC_Camera), ECR_Ignore);
+	TestEqual(TEXT("Security Rotor remains queryable through the light curtain"), EditableRotor->RotorMesh->GetCollisionResponseToChannel(ECC_Visibility), ECR_Block);
+	TestEqual(TEXT("Security Rotor query shape does not physically block the player"), EditableRotor->RotorMesh->GetCollisionResponseToChannel(ECC_Pawn), ECR_Ignore);
+	TestEqual(TEXT("Targeting proxy provides forgiving machine-body bounds"), EditableRotor->TargetingProxy->GetUnscaledBoxExtent(), FVector(110.0, 160.0, 140.0));
+	TestEqual(TEXT("Targeting proxy blocks only Visibility"), EditableRotor->TargetingProxy->GetCollisionResponseToChannel(ECC_Visibility), ECR_Block);
+	TestEqual(TEXT("Targeting proxy ignores Pawn"), EditableRotor->TargetingProxy->GetCollisionResponseToChannel(ECC_Pawn), ECR_Ignore);
+	TestEqual(TEXT("Targeting proxy ignores Camera"), EditableRotor->TargetingProxy->GetCollisionResponseToChannel(ECC_Camera), ECR_Ignore);
+	TestTrue(TEXT("Primary scanner begins active"), EditableRotor->IsPrimaryScannerActive());
+	TestTrue(TEXT("Secondary scanner begins phase-offset active"), EditableRotor->IsSecondaryScannerActive());
+	TestEqual(TEXT("Editable rotor uses the authored 1.0x cadence"), EditableRotor->RotationDegreesPerSecond, 720.0f);
+	TestEqual(TEXT("Reference rotor shares the authored 1.0x cadence"), ReferenceRotor->RotationDegreesPerSecond, 720.0f);
 	TestEqual(TEXT("Editable cadence markers do not add collision"), EditableRotor->RotorTipPositive->GetCollisionEnabled(), ECollisionEnabled::NoCollision);
 	TestEqual(TEXT("Reference cadence markers do not add collision"), ReferenceRotor->RotorTipPositive->GetCollisionEnabled(), ECollisionEnabled::NoCollision);
 	EditableRotor->Tick(0.25f);
 	TestEqual(TEXT("Machinery consumes Actor-local Tick delta"), EditableRotor->AccumulatedTickSeconds, 0.25f);
+	TestTrue(TEXT("Primary scanner follows the active half-revolution rotor phase"), EditableRotor->IsPrimaryScannerActive());
+	TestFalse(TEXT("Secondary scanner uses a 90-degree rotor phase offset"), EditableRotor->IsSecondaryScannerActive());
 	ReferenceRotor->Tick(0.25f);
 	TestEqual(TEXT("Reference machinery provides the same baseline Tick cadence"), ReferenceRotor->AccumulatedTickSeconds, 0.25f);
 	TestEqual(TEXT("Editable rotor audio begins at baseline"), EditableRotor->GetPresentationAudioPitch(), 1.0f);
@@ -134,6 +160,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FDemoGrayboxMapLoadTest::RunTest(const FString& Parameters)
 {
+	FString StartupMap;
+	GConfig->GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameDefaultMap"), StartupMap, GEngineIni);
+	TestEqual(
+		TEXT("Standalone startup enters the public Demo"),
+		FPackageName::ObjectPathToPackageName(StartupMap),
+		FString(TEXT("/Game/Levels/Demo/Lvl_Demo_Graybox")));
 	UPackage* DemoPackage = LoadPackage(nullptr, TEXT("/Game/Levels/Demo/Lvl_Demo_Graybox"), LOAD_None);
 	return TestNotNull(TEXT("Public Demo graybox map package loads"), DemoPackage);
 }

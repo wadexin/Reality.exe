@@ -56,6 +56,9 @@ public:
 	virtual void Interact_Implementation(AActor* Interactor) override;
 	virtual FText GetInteractionPrompt_Implementation(AActor* Interactor) const override;
 
+protected:
+	virtual void BeginPlay() override;
+
 private:
 	UPROPERTY(VisibleInstanceOnly, Category = "Demo|Editable")
 	FText TargetDisplayName;

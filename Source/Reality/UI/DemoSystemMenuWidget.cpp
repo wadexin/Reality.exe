@@ -68,7 +68,9 @@ void UDemoSystemMenuWidget::BuildLayout()
 void UDemoSystemMenuWidget::SetRestartConfirmation(const bool bConfirming)
 {
 	bConfirmingRestart = bConfirming;
-	if (PromptText) PromptText->SetText(bConfirming ? FText::FromString(TEXT("Restart Demo?\nCurrent session progress will be reset.")) : FText::FromString(TEXT("ESC  RESUME\nRestart returns to Intake.")));
+	if (PromptText) PromptText->SetText(bConfirming
+		? FText::FromString(TEXT("Restart Demo?\nCurrent session progress will be reset."))
+		: FText::FromString(TEXT("ESC  RESUME\nRestore Position keeps world changes.\nRestart Demo resets this session.")));
 	if (ResumeButton) ResumeButton->SetVisibility(bConfirming ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	if (RestartButton) RestartButton->SetVisibility(bConfirming ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	if (RestorePositionButton) RestorePositionButton->SetVisibility(bConfirming ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);

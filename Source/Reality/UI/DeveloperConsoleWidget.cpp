@@ -25,6 +25,13 @@ namespace DeveloperConsoleStyle
 	const FLinearColor Accent(0.1f, 0.85f, 1.0f, 1.0f);
 	const FLinearColor PrimaryText(0.92f, 0.96f, 1.0f, 1.0f);
 	const FLinearColor SecondaryText(0.62f, 0.72f, 0.78f, 1.0f);
+
+	FString GetAbilityName(const FGameplayTag CheatTag)
+	{
+		FString Name = CheatTag.ToString();
+		Name.RemoveFromStart(TEXT("Cheat."));
+		return Name;
+	}
 }
 
 bool UDeveloperConsoleWidget::Initialize()
@@ -141,8 +148,8 @@ void UDeveloperConsoleWidget::BuildPrototypeLayout()
 
 	AddLabel(Body, TEXT("DEVELOPER CONSOLE"), 28, DeveloperConsoleStyle::Accent);
 	AddLabel(Body, TEXT("F6  CLOSE"), 12, DeveloperConsoleStyle::SecondaryText);
-	TargetText = AddLabel(Body, TEXT("TARGET\nNo editable object selected"), 20, DeveloperConsoleStyle::PrimaryText);
-	TargetDetailsText = AddLabel(Body, TEXT(""), 14, DeveloperConsoleStyle::SecondaryText);
+	TargetText = AddLabel(Body, TEXT("TARGET\nNo Reality target selected"), 20, DeveloperConsoleStyle::PrimaryText);
+	TargetDetailsText = AddLabel(Body, TEXT("Close with F6, aim at a marked object, then reopen."), 14, DeveloperConsoleStyle::SecondaryText);
 
 	CollisionSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CollisionSection"));
 	Body->AddChildToVerticalBox(CollisionSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
@@ -255,14 +262,19 @@ void UDeveloperConsoleWidget::RefreshConsole()
 
 	if (IsValid(Editable) && IsValid(Editable->GetOwner()))
 	{
-		TargetText->SetText(FText::FromString(FString::Printf(TEXT("TARGET\n%s"), *GetNameSafe(Editable->GetOwner()))));
-		TargetDetailsText->SetText(FText::FromString(FString::Printf(TEXT("Object Tags: %s\nSupported: %s"),
-			*Editable->GetObjectTags().ToStringSimple(), *Editable->GetSupportedCheats().ToStringSimple())));
+		TargetText->SetText(FText::Format(NSLOCTEXT("RealityDemo", "DeveloperTarget", "TARGET\n{0}"), Editable->GetPlayerFacingName()));
+		TargetDetailsText->SetText(NSLOCTEXT(
+			"RealityDemo",
+			"DeveloperTargetGuidance",
+			"Choose an available property below. Restore returns that property to baseline."));
 	}
 	else
 	{
-		TargetText->SetText(FText::FromString(TEXT("TARGET\nNo editable object selected")));
-		TargetDetailsText->SetText(FText::GetEmpty());
+		TargetText->SetText(NSLOCTEXT("RealityDemo", "NoDeveloperTarget", "TARGET\nNo Reality target selected"));
+		TargetDetailsText->SetText(NSLOCTEXT(
+			"RealityDemo",
+			"NoDeveloperTargetGuidance",
+			"Close with F6, aim at a marked object, then reopen."));
 	}
 
 	const bool bCollisionSupported = IsValid(Editable) && Editable->SupportsCheat(CollisionTag);
@@ -287,61 +299,59 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	if (bScaleSupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityScalePreset>();
-		ScaleStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nCurrent: %s\nActor Scale: %s"),
+		ScaleStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nCurrent: %s"),
 			Editable->IsScaleModified() ? TEXT("Yes") : TEXT("No"),
-			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentScalePreset())).ToString() : TEXT("Unknown"),
-			*Editable->GetOwner()->GetActorScale3D().ToCompactString())));
+			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentScalePreset())).ToString() : TEXT("Unknown"))));
 		ScaleRestoreButton->SetVisibility(Editable->IsScaleModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (bGravitySupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityGravityPreset>();
-		GravityStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nCurrent: %s\nPhysics Components: %d"),
+		GravityStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nCurrent: %s"),
 			Editable->IsGravityModified() ? TEXT("Yes") : TEXT("No"),
-			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentGravityPreset())).ToString() : TEXT("Unknown"),
-			Editable->GetEligibleGravityComponentCount())));
+			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentGravityPreset())).ToString() : TEXT("Unknown"))));
 		GravityRestoreButton->SetVisibility(Editable->IsGravityModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (bMassSupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityMassPreset>();
-		MassStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBodies: %d\nBaseline Mass: %.2f kg\nCurrent Mass: %.2f kg"),
+		MassStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Mass: %.2f kg\nCurrent Mass: %.2f kg"),
 			Editable->IsMassModified() ? TEXT("Yes") : TEXT("No"),
 			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentMassPreset())).ToString() : TEXT("Unknown"),
-			Editable->GetEligibleMassComponentCount(), Editable->GetBaselineEffectiveMassKg(), Editable->GetCurrentEffectiveMassKg())));
+			Editable->GetBaselineEffectiveMassKg(), Editable->GetCurrentEffectiveMassKg())));
 		MassRestoreButton->SetVisibility(Editable->IsMassModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (bFrictionSupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityFrictionPreset>();
-		FrictionStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBodies: %d\nBaseline Friction: %.3f\nCurrent Friction: %.3f"),
+		FrictionStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Friction: %.3f\nCurrent Friction: %.3f"),
 			Editable->IsFrictionModified() ? TEXT("Yes") : TEXT("No"),
 			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentFrictionPreset())).ToString() : TEXT("Unknown"),
-			Editable->GetEligibleFrictionComponentCount(), Editable->GetBaselineFriction(), Editable->GetCurrentFriction())));
+			Editable->GetBaselineFriction(), Editable->GetCurrentFriction())));
 		FrictionRestoreButton->SetVisibility(Editable->IsFrictionModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (bTimeSupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityTimePreset>();
-		TimeStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Local: %.3fx\nCurrent Local: %.3fx\nTick-driven actor behavior only"),
+		TimeStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Local: %.3fx\nCurrent Local: %.3fx\nAffects this machine only"),
 			Editable->IsTimeModified() ? TEXT("Yes") : TEXT("No"),
 			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentTimePreset())).ToString() : TEXT("Unknown"),
 			Editable->GetOriginalTimeDilation(), Editable->GetCurrentEffectiveTimeDilation())));
 		TimeRestoreButton->SetVisibility(Editable->IsTimeModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
-	FString RealityDisplay = TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable");
+	FString RealityDisplay = TEXT("REALITY MONITOR\nSuspicion: 0 / 100\nState: Stable\nImplausible changes attract attention.");
 	if (const UWorld* World = GetWorld())
 	{
 		if (const URealityManagerSubsystem* Manager = World->GetSubsystem<URealityManagerSubsystem>())
 		{
 			const UEnum* StateEnum = StaticEnum<ERealityState>();
-			RealityDisplay = FString::Printf(TEXT("REALITY\nSuspicion: %.0f / 100\nState: %s"), Manager->GetSuspicion(),
+			RealityDisplay = FString::Printf(TEXT("REALITY MONITOR\nSuspicion: %.0f / 100\nState: %s\nImplausible changes attract attention."), Manager->GetSuspicion(),
 				StateEnum ? *StateEnum->GetDisplayNameTextByValue(static_cast<int64>(Manager->GetRealityState())).ToString() : TEXT("Unknown"));
 			if (const FRealityProcessedCheatRecord* Event = Manager->GetMostRecentEvent())
 			{
-				RealityDisplay += FString::Printf(TEXT("\n\nLast Event: %s %s %+.0f\nBase: %+.0f  Witness: %+.0f  Context: -%.0f\nObserved By: %d  Matched Contexts: %d"),
-					*Event->CheatTag.ToString(), Event->Operation == ERealityCheatOperation::Apply ? TEXT("Apply") : TEXT("Restore"),
+				RealityDisplay += FString::Printf(TEXT("\n\nLast Change: %s %s %+.0f\nChange: %+.0f  Observers: %+.0f  Plausibility: -%.0f\nObservers: %d  Matching conditions: %d"),
+					*DeveloperConsoleStyle::GetAbilityName(Event->CheatTag), Event->Operation == ERealityCheatOperation::Apply ? TEXT("Applied") : TEXT("Restored"),
 					Event->SuspicionDelta, Event->BaseSuspicionDelta, Event->WitnessSuspicionDelta, Event->ContextSuspicionReduction,
 					Event->ObservingWitnessCount, Event->MatchedContextCount);
 			}
@@ -365,7 +375,7 @@ void UDeveloperConsoleWidget::RefreshConsole()
 			}
 		}
 		const FString TargetLabel = IsValid(Editable) && IsValid(Editable->GetOwner())
-			? GetNameSafe(Editable->GetOwner()).ToUpper()
+			? Editable->GetPlayerFacingName().ToString().ToUpper()
 			: TEXT("NONE");
 		ModeOverlayText->SetText(FText::FromString(FString::Printf(
 			TEXT("[ DEVELOPER MODE ]\nTARGET  %s\nREALITY  %s  |  SUSPICION %.0f"),
@@ -380,7 +390,7 @@ void UDeveloperConsoleWidget::RefreshConsole()
 		{
 			FeedbackText->SetText(FText::FromString(FString::Printf(TEXT("%s  %s"),
 				Feedback == EDeveloperOperationFeedback::Applied ? TEXT("APPLIED") : TEXT("RESTORED"),
-				*DeveloperComponent->GetOperationFeedbackTag().ToString().ToUpper())));
+				*DeveloperConsoleStyle::GetAbilityName(DeveloperComponent->GetOperationFeedbackTag()).ToUpper())));
 			FeedbackText->SetColorAndOpacity(FSlateColor(Feedback == EDeveloperOperationFeedback::Applied
 				? DeveloperConsoleStyle::Accent
 				: FLinearColor(0.45f, 1.0f, 0.62f, 1.0f)));

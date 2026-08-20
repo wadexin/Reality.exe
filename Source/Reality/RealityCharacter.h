@@ -118,6 +118,8 @@ public:
 	ARealityCharacter();
 
 protected:
+	/** Rebuilds per-Pawn mappings so cooked Blueprint instances reference their runtime Input Actions. */
+	void RebuildRuntimeInputMappings();
 
 	/** Called from Input Actions for movement input */
 	void MoveInput(const FInputActionValue& Value);

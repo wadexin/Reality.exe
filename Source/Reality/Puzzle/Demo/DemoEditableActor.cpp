@@ -47,6 +47,12 @@ ADemoEditableActor::ADemoEditableActor()
 	RecoverableComponent = CreateDefaultSubobject<UDemoRecoverableComponent>(TEXT("Demo Recoverable Component"));
 }
 
+void ADemoEditableActor::BeginPlay()
+{
+	Super::BeginPlay();
+	EditableComponent->SetPlayerFacingName(TargetDisplayName);
+}
+
 void ADemoEditableActor::ConfigureDemoTarget(
 	const FText DisplayName,
 	const bool bCollision,
@@ -61,6 +67,7 @@ void ADemoEditableActor::ConfigureDemoTarget(
 {
 	TargetDisplayName = DisplayName;
 	bPushInteractionEnabled = bEnablePushInteraction;
+	EditableComponent->SetPlayerFacingName(DisplayName);
 
 	FGameplayTagContainer Capabilities;
 	if (bCollision) Capabilities.AddTag(TAG_Demo_Collision);

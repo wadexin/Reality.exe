@@ -178,6 +178,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Reality|Editable")
 	FGameplayTagContainer GetObjectTags() const;
 
+	/** Returns the authored player-facing target name, or a safe generic label when none is configured. */
+	UFUNCTION(BlueprintPure, Category = "Reality|Editable")
+	FText GetPlayerFacingName() const
+	{
+		return PlayerFacingName.IsEmpty() ? NSLOCTEXT("RealityEditable", "GenericPlayerFacingName", "Editable Object") : PlayerFacingName;
+	}
+
 	/** Disables collision on valid PrimitiveComponents owned directly by this Actor. */
 	UFUNCTION(BlueprintCallable, Category = "Reality|Editable|Collision")
 	bool ApplyCollisionModification(AActor* InstigatingActor);
@@ -328,6 +335,9 @@ public:
 	/** Copies object classification without exposing mutable internal storage. Intended for C++ setup and tests. */
 	void SetObjectTags(const FGameplayTagContainer& InObjectTags);
 
+	/** Sets the concise name shown by player-facing Developer Mode UI. */
+	void SetPlayerFacingName(const FText& InPlayerFacingName) { PlayerFacingName = InPlayerFacingName; }
+
 protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -348,6 +358,10 @@ private:
 	/** Semantic object classifications used by future Reality rules. */
 	UPROPERTY(EditAnywhere, Category = "Reality|Editable", meta = (Categories = "Object"))
 	FGameplayTagContainer ObjectTags;
+
+	/** Concise authored target name used by player-facing Developer Mode presentation. */
+	UPROPERTY(EditAnywhere, Category = "Reality|Editable")
+	FText PlayerFacingName;
 
 	/** Per-component states captured before the active collision modification. Never exposed for mutation. */
 	UPROPERTY(Transient)

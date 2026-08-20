@@ -46,7 +46,7 @@ public:
 	float GetPresentationAudioPitch() const { return 1.0f; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Time")
-	float RotationDegreesPerSecond = 90.0f;
+	float RotationDegreesPerSecond = 720.0f;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Demo|Time")
 	float AccumulatedTickSeconds = 0.0f;
