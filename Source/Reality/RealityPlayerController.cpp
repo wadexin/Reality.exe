@@ -13,6 +13,7 @@
 #include "UI/DemoSystemMenuWidget.h"
 #include "InputCoreTypes.h"
 #include "Puzzle/Demo/DemoPlayerRecoveryComponent.h"
+#include "Audio/DemoMusicComponent.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
 ARealityPlayerController::ARealityPlayerController()
@@ -20,6 +21,7 @@ ARealityPlayerController::ARealityPlayerController()
 	// set the player camera manager class
 	PlayerCameraManagerClass = ARealityCameraManager::StaticClass();
 	DeveloperConsoleWidgetClass = TSoftClassPtr<UDeveloperConsoleWidget>(FSoftObjectPath(TEXT("/Game/UI/Developer/WBP_DeveloperConsole.WBP_DeveloperConsole_C")));
+	DemoMusicComponent = CreateDefaultSubobject<UDemoMusicComponent>(TEXT("Demo Background Music"));
 }
 
 void ARealityPlayerController::BeginPlay()

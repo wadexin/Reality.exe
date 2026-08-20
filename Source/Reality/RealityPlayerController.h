@@ -11,6 +11,7 @@ class UDeveloperConsoleWidget;
 class UDeveloperModeComponent;
 class UUserWidget;
 class UDemoSystemMenuWidget;
+class UDemoMusicComponent;
 
 /**
  *  Simple first person Player Controller
@@ -101,4 +102,8 @@ private:
 	TWeakObjectPtr<UDeveloperModeComponent> BoundDeveloperModeComponent;
 
 	UPROPERTY(Transient) TObjectPtr<UDemoSystemMenuWidget> SystemMenuWidget;
+
+	/** Non-spatial Demo-only music; world reload naturally restarts the track. */
+	UPROPERTY(VisibleAnywhere, Category="Demo|Music")
+	TObjectPtr<UDemoMusicComponent> DemoMusicComponent;
 };

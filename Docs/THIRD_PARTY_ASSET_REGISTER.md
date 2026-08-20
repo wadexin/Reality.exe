@@ -31,6 +31,12 @@ Every external source must add a row before its first production commit with:
 
 Receipts and account details belong in restricted team records, not in the repository.
 
+## Demo background music — 2026-08-20
+
+| Asset/source | Publisher | Source | Acquisition date | License/use status | Original file | Imported Reality paths | Purpose | Modifications/derived assets | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| Behind the Parameters | Generated using Suno | Project-provided source file | 2026-08-20 | Current project use: non-commercial | `Behind the Parameters.mp3` | `/Game/Audio/Reality/Music/S_RLT_BehindTheParameters` | Non-spatialized Demo background music | Imported Unreal SoundWave; full-track playback with delayed, faded replay | Licensing must be rechecked, or the track replaced, before any future commercial release if necessary. |
+
 ## Task 021 readability revision — 2026-08-13
 
 Four ambientCG surface sources were acquired directly from their official asset pages as the 2K-JPG packages. ambientCG identifies its downloadable assets as Creative Commons CC0 1.0 Universal. Only Base Color, DirectX Normal, and Roughness maps entered the repository; archives, previews, displacement, OpenGL normals, DCC files, and package metadata were excluded.
