@@ -15,6 +15,7 @@
 #include "Materials/MaterialInterface.h"
 #include "NativeGameplayTags.h"
 #include "Puzzle/Demo/DemoPlayerRecoveryComponent.h"
+#include "Puzzle/Demo/DemoLanguage.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -249,7 +250,14 @@ bool ADemoTimeMachineryActor::RejectPlayer(AActor* PlayerActor)
 	if (bRejectingPlayer || !Recovery || !Controller) return false;
 
 	bRejectingPlayer = true;
-	Controller->ClientMessage(TEXT("ACCESS VIOLATION\nUNAUTHORIZED TRANSIT DETECTED\nRETURNING TO CONTROLLED SIDE"), NAME_None, 3.0f);
+	if (RealityDemoLanguage::IsSimplifiedChinese(this))
+	{
+		RealityDemoLanguage::ShowChineseNotice(Controller, FText::FromString(TEXT("访问违规\n检测到未经授权的通行\n正在返回受控侧")), 3.0f);
+	}
+	else
+	{
+		Controller->ClientMessage(TEXT("ACCESS VIOLATION\nUNAUTHORIZED TRANSIT DETECTED\nRETURNING TO CONTROLLED SIDE"), NAME_None, 3.0f);
+	}
 	if (ScannerViolationSound) UGameplayStatics::PlaySound2D(this, ScannerViolationSound, 0.55f);
 	if (Controller->PlayerCameraManager) Controller->PlayerCameraManager->StartCameraFade(0.0f, 1.0f, 0.12f, FLinearColor::Black, false, true);
 

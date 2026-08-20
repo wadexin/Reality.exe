@@ -8,6 +8,7 @@
 #include "Engine/CollisionProfile.h"
 #include "NativeGameplayTags.h"
 #include "Reality.h"
+#include "Puzzle/Demo/DemoLanguage.h"
 #include "RealitySystem/RealityContextComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
@@ -94,17 +95,17 @@ void ADemoSensorFailurePanel::Interact_Implementation(AActor* Interactor)
 FText ADemoSensorFailurePanel::GetInteractionPrompt_Implementation(AActor* Interactor) const
 {
 	return ContextComponent->IsContextActive()
-		? NSLOCTEXT("RealityDemo", "RestoreSensors", "E: Restore Sensor Array")
-		: NSLOCTEXT("RealityDemo", "DisableSensors", "E: Run Sensor Failure Test");
+		? RealityDemoLanguage::Text(this, TEXT("E: Restore Sensor Array"), TEXT("E：恢复传感器阵列"))
+		: RealityDemoLanguage::Text(this, TEXT("E: Run Sensor Failure Test"), TEXT("E：运行传感器故障测试"));
 }
 
 void ADemoSensorFailurePanel::RefreshStatusFeedback()
 {
 	const bool bFailure = ContextComponent && ContextComponent->IsContextActive();
-	StatusText->SetText(bFailure
-		? NSLOCTEXT("RealityDemo", "SensorFailure", "SECURITY SENSOR ARRAY\nFAILURE ACTIVE")
-		: NSLOCTEXT("RealityDemo", "SensorOnline", "SECURITY SENSOR ARRAY\nONLINE\nE: DIAGNOSTIC"));
 	StatusText->SetTextRenderColor(bFailure ? FColor::Orange : FColor::Green);
+	RealityDemoLanguage::SetWorldText(StatusText, this,
+		bFailure ? FText::FromString(TEXT("SECURITY SENSOR ARRAY\nFAILURE ACTIVE")) : FText::FromString(TEXT("SECURITY SENSOR ARRAY\nONLINE\nE: DIAGNOSTIC")),
+		bFailure ? FText::FromString(TEXT("安保传感器阵列\n故障已激活")) : FText::FromString(TEXT("安保传感器阵列\n在线\nE：诊断")));
 }
 
 void ADemoSensorFailurePanel::RefreshAudioFeedback(const bool bPlayToggleCue)

@@ -17,6 +17,7 @@
 #include "Engine/World.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
+#include "Puzzle/Demo/DemoLanguage.h"
 #include "RealitySystem/RealityManagerSubsystem.h"
 #include "RealityPlayerController.h"
 
@@ -30,6 +31,19 @@ namespace DeveloperConsoleStyle
 	{
 		FString Name = CheatTag.ToString();
 		Name.RemoveFromStart(TEXT("Cheat."));
+		return Name;
+	}
+
+	FString GetLocalizedAbilityName(const UObject* Context, const FGameplayTag CheatTag)
+	{
+		const FString Name = GetAbilityName(CheatTag);
+		if (!RealityDemoLanguage::IsSimplifiedChinese(Context)) return Name;
+		if (Name == TEXT("Collision")) return TEXT("碰撞");
+		if (Name == TEXT("Scale")) return TEXT("缩放");
+		if (Name == TEXT("Gravity")) return TEXT("重力");
+		if (Name == TEXT("Mass")) return TEXT("质量");
+		if (Name == TEXT("Friction")) return TEXT("摩擦力");
+		if (Name == TEXT("Time")) return TEXT("局部时间");
 		return Name;
 	}
 }
@@ -105,6 +119,7 @@ FReply UDeveloperConsoleWidget::NativeOnKeyDown(const FGeometry& InGeometry, con
 
 void UDeveloperConsoleWidget::BuildPrototypeLayout()
 {
+	auto L = [this](const TCHAR* English, const TCHAR* Chinese) { return RealityDemoLanguage::String(this, English, Chinese); };
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("DeveloperConsoleRoot"));
 	WidgetTree->RootWidget = Root;
 
@@ -130,7 +145,7 @@ void UDeveloperConsoleWidget::BuildPrototypeLayout()
 	OverlaySize->SetContent(OverlayBackground);
 	UVerticalBox* OverlayBody = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("DeveloperOverlayBody"));
 	OverlayBackground->SetContent(OverlayBody);
-	ModeOverlayText = AddLabel(OverlayBody, TEXT("[ DEVELOPER MODE ]\nTARGET  NONE\nREALITY  STABLE  |  SUSPICION 0"), 13, DeveloperConsoleStyle::Accent);
+	ModeOverlayText = AddLabel(OverlayBody, L(TEXT("[ DEVELOPER MODE ]\nTARGET  NONE\nREALITY  STABLE  |  SUSPICION 0"), TEXT("[ 开发者模式 ]\n目标  无\n现实  稳定  |  怀疑度 0")), 14, DeveloperConsoleStyle::Accent);
 	ModeOverlayText->SetJustification(ETextJustify::Right);
 	FeedbackText = AddLabel(OverlayBody, TEXT(""), 15, DeveloperConsoleStyle::PrimaryText);
 	FeedbackText->SetJustification(ETextJustify::Right);
@@ -146,72 +161,72 @@ void UDeveloperConsoleWidget::BuildPrototypeLayout()
 	UVerticalBox* Body = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ConsoleBody"));
 	Scroll->AddChild(Body);
 
-	AddLabel(Body, TEXT("DEVELOPER CONSOLE"), 28, DeveloperConsoleStyle::Accent);
-	AddLabel(Body, TEXT("F6  CLOSE"), 12, DeveloperConsoleStyle::SecondaryText);
-	TargetText = AddLabel(Body, TEXT("TARGET\nNo Reality target selected"), 20, DeveloperConsoleStyle::PrimaryText);
-	TargetDetailsText = AddLabel(Body, TEXT("Close with F6, aim at a marked object, then reopen."), 14, DeveloperConsoleStyle::SecondaryText);
+	AddLabel(Body, L(TEXT("DEVELOPER CONSOLE"), TEXT("开发者控制台")), 28, DeveloperConsoleStyle::Accent);
+	AddLabel(Body, L(TEXT("F6  CLOSE"), TEXT("F6  关闭")), 14, DeveloperConsoleStyle::SecondaryText);
+	TargetText = AddLabel(Body, L(TEXT("TARGET\nNo Reality target selected"), TEXT("目标\n未选择现实目标")), 22, DeveloperConsoleStyle::PrimaryText);
+	TargetDetailsText = AddLabel(Body, L(TEXT("Close with F6, aim at a marked object, then reopen."), TEXT("按 F6 关闭，对准带标记的对象后重新打开。")), 16, DeveloperConsoleStyle::SecondaryText);
 
 	CollisionSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CollisionSection"));
 	Body->AddChildToVerticalBox(CollisionSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
-	AddLabel(CollisionSection, TEXT("COLLISION"), 18, DeveloperConsoleStyle::Accent);
-	CollisionStateText = AddLabel(CollisionSection, TEXT("State: Normal"), 14, DeveloperConsoleStyle::PrimaryText);
-	CollisionButton = AddButton(CollisionSection, TEXT("Disable Collision"));
+	AddLabel(CollisionSection, L(TEXT("COLLISION"), TEXT("碰撞")), 18, DeveloperConsoleStyle::Accent);
+	CollisionStateText = AddLabel(CollisionSection, L(TEXT("State: Normal"), TEXT("状态：正常")), 14, DeveloperConsoleStyle::PrimaryText);
+	CollisionButton = AddButton(CollisionSection, L(TEXT("Disable Collision"), TEXT("关闭碰撞")));
 	CollisionButtonText = Cast<UTextBlock>(CollisionButton->GetChildAt(0));
 	CollisionButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleCollisionClicked);
 
 	ScaleSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ScaleSection"));
 	Body->AddChildToVerticalBox(ScaleSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
-	AddLabel(ScaleSection, TEXT("SCALE"), 18, DeveloperConsoleStyle::Accent);
-	ScaleStateText = AddLabel(ScaleSection, TEXT("Current: 1.0x"), 14, DeveloperConsoleStyle::PrimaryText);
+	AddLabel(ScaleSection, L(TEXT("SCALE"), TEXT("缩放")), 18, DeveloperConsoleStyle::Accent);
+	ScaleStateText = AddLabel(ScaleSection, L(TEXT("Current: 1.0x"), TEXT("当前：1.0x")), 14, DeveloperConsoleStyle::PrimaryText);
 	UButton* ScaleQuarter = AddButton(ScaleSection, TEXT("0.25x")); ScaleQuarter->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleScaleQuarterClicked);
 	UButton* ScaleHalf = AddButton(ScaleSection, TEXT("0.5x")); ScaleHalf->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleScaleHalfClicked);
 	UButton* ScaleOne = AddButton(ScaleSection, TEXT("1.0x")); ScaleOne->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleScaleOneClicked);
 	UButton* ScaleDouble = AddButton(ScaleSection, TEXT("2.0x")); ScaleDouble->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleScaleDoubleClicked);
 	UButton* ScaleQuadruple = AddButton(ScaleSection, TEXT("4.0x")); ScaleQuadruple->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleScaleQuadrupleClicked);
-	ScaleRestoreButton = AddButton(ScaleSection, TEXT("Restore Scale")); ScaleRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleScaleRestoreClicked);
+	ScaleRestoreButton = AddButton(ScaleSection, L(TEXT("Restore Scale"), TEXT("恢复缩放"))); ScaleRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleScaleRestoreClicked);
 
 	GravitySection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("GravitySection"));
 	Body->AddChildToVerticalBox(GravitySection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
-	AddLabel(GravitySection, TEXT("GRAVITY"), 18, DeveloperConsoleStyle::Accent);
-	GravityStateText = AddLabel(GravitySection, TEXT("Current: Normal"), 14, DeveloperConsoleStyle::PrimaryText);
-	UButton* GravityNormal = AddButton(GravitySection, TEXT("Normal")); GravityNormal->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityNormalClicked);
-	UButton* GravityLow = AddButton(GravitySection, TEXT("Low")); GravityLow->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityLowClicked);
-	UButton* GravityZero = AddButton(GravitySection, TEXT("Zero")); GravityZero->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityZeroClicked);
-	GravityRestoreButton = AddButton(GravitySection, TEXT("Restore Gravity")); GravityRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityRestoreClicked);
+	AddLabel(GravitySection, L(TEXT("GRAVITY"), TEXT("重力")), 18, DeveloperConsoleStyle::Accent);
+	GravityStateText = AddLabel(GravitySection, L(TEXT("Current: Normal"), TEXT("当前：正常")), 14, DeveloperConsoleStyle::PrimaryText);
+	UButton* GravityNormal = AddButton(GravitySection, L(TEXT("Normal"), TEXT("正常"))); GravityNormal->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityNormalClicked);
+	UButton* GravityLow = AddButton(GravitySection, L(TEXT("Low"), TEXT("低重力"))); GravityLow->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityLowClicked);
+	UButton* GravityZero = AddButton(GravitySection, L(TEXT("Zero"), TEXT("零重力"))); GravityZero->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityZeroClicked);
+	GravityRestoreButton = AddButton(GravitySection, L(TEXT("Restore Gravity"), TEXT("恢复重力"))); GravityRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleGravityRestoreClicked);
 
 	MassSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MassSection"));
 	Body->AddChildToVerticalBox(MassSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
-	AddLabel(MassSection, TEXT("MASS"), 18, DeveloperConsoleStyle::Accent);
-	MassStateText = AddLabel(MassSection, TEXT("Modified: No\nPreset: 1.0x"), 14, DeveloperConsoleStyle::PrimaryText);
+	AddLabel(MassSection, L(TEXT("MASS"), TEXT("质量")), 18, DeveloperConsoleStyle::Accent);
+	MassStateText = AddLabel(MassSection, L(TEXT("Modified: No\nPreset: 1.0x"), TEXT("已修改：否\n预设：1.0x")), 14, DeveloperConsoleStyle::PrimaryText);
 	UButton* MassQuarter = AddButton(MassSection, TEXT("0.25x")); MassQuarter->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassQuarterClicked);
 	UButton* MassHalf = AddButton(MassSection, TEXT("0.5x")); MassHalf->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassHalfClicked);
 	UButton* MassOne = AddButton(MassSection, TEXT("1.0x")); MassOne->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassOneClicked);
 	UButton* MassDouble = AddButton(MassSection, TEXT("2.0x")); MassDouble->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassDoubleClicked);
 	UButton* MassQuadruple = AddButton(MassSection, TEXT("4.0x")); MassQuadruple->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassQuadrupleClicked);
-	MassRestoreButton = AddButton(MassSection, TEXT("Restore Mass")); MassRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassRestoreClicked);
+	MassRestoreButton = AddButton(MassSection, L(TEXT("Restore Mass"), TEXT("恢复质量"))); MassRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleMassRestoreClicked);
 
 	FrictionSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("FrictionSection"));
 	Body->AddChildToVerticalBox(FrictionSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
-	AddLabel(FrictionSection, TEXT("FRICTION"), 18, DeveloperConsoleStyle::Accent);
-	FrictionStateText = AddLabel(FrictionSection, TEXT("Modified: No\nPreset: Normal"), 14, DeveloperConsoleStyle::PrimaryText);
-	UButton* FrictionZero = AddButton(FrictionSection, TEXT("Zero")); FrictionZero->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionZeroClicked);
-	UButton* FrictionLow = AddButton(FrictionSection, TEXT("Low")); FrictionLow->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionLowClicked);
-	UButton* FrictionNormal = AddButton(FrictionSection, TEXT("Normal")); FrictionNormal->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionNormalClicked);
-	UButton* FrictionHigh = AddButton(FrictionSection, TEXT("High")); FrictionHigh->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionHighClicked);
-	FrictionRestoreButton = AddButton(FrictionSection, TEXT("Restore Friction")); FrictionRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionRestoreClicked);
+	AddLabel(FrictionSection, L(TEXT("FRICTION"), TEXT("摩擦力")), 18, DeveloperConsoleStyle::Accent);
+	FrictionStateText = AddLabel(FrictionSection, L(TEXT("Modified: No\nPreset: Normal"), TEXT("已修改：否\n预设：正常")), 14, DeveloperConsoleStyle::PrimaryText);
+	UButton* FrictionZero = AddButton(FrictionSection, L(TEXT("Zero"), TEXT("零"))); FrictionZero->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionZeroClicked);
+	UButton* FrictionLow = AddButton(FrictionSection, L(TEXT("Low"), TEXT("低"))); FrictionLow->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionLowClicked);
+	UButton* FrictionNormal = AddButton(FrictionSection, L(TEXT("Normal"), TEXT("正常"))); FrictionNormal->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionNormalClicked);
+	UButton* FrictionHigh = AddButton(FrictionSection, L(TEXT("High"), TEXT("高"))); FrictionHigh->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionHighClicked);
+	FrictionRestoreButton = AddButton(FrictionSection, L(TEXT("Restore Friction"), TEXT("恢复摩擦力"))); FrictionRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleFrictionRestoreClicked);
 
 	TimeSection = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TimeSection"));
 	Body->AddChildToVerticalBox(TimeSection)->SetPadding(FMargin(0.0f, 16.0f, 0.0f, 0.0f));
-	AddLabel(TimeSection, TEXT("LOCAL TIME"), 18, DeveloperConsoleStyle::Accent);
-	TimeStateText = AddLabel(TimeSection, TEXT("Modified: No\nPreset: 1.0x"), 14, DeveloperConsoleStyle::PrimaryText);
+	AddLabel(TimeSection, L(TEXT("LOCAL TIME"), TEXT("局部时间")), 18, DeveloperConsoleStyle::Accent);
+	TimeStateText = AddLabel(TimeSection, L(TEXT("Modified: No\nPreset: 1.0x"), TEXT("已修改：否\n预设：1.0x")), 14, DeveloperConsoleStyle::PrimaryText);
 	UButton* TimeQuarter = AddButton(TimeSection, TEXT("0.25x")); TimeQuarter->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeQuarterClicked);
 	UButton* TimeHalf = AddButton(TimeSection, TEXT("0.5x")); TimeHalf->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeHalfClicked);
 	UButton* TimeOne = AddButton(TimeSection, TEXT("1.0x")); TimeOne->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeOneClicked);
 	UButton* TimeDouble = AddButton(TimeSection, TEXT("2.0x")); TimeDouble->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeDoubleClicked);
 	UButton* TimeQuadruple = AddButton(TimeSection, TEXT("4.0x")); TimeQuadruple->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeQuadrupleClicked);
-	TimeRestoreButton = AddButton(TimeSection, TEXT("Restore Local Time")); TimeRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeRestoreClicked);
+	TimeRestoreButton = AddButton(TimeSection, L(TEXT("Restore Local Time"), TEXT("恢复局部时间"))); TimeRestoreButton->OnClicked.AddDynamic(this, &UDeveloperConsoleWidget::HandleTimeRestoreClicked);
 
-	RealityText = AddLabel(Body, TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable"), 14, DeveloperConsoleStyle::PrimaryText);
+	RealityText = AddLabel(Body, L(TEXT("REALITY\nSuspicion: 0 / 100\nState: Stable"), TEXT("现实监控\n怀疑度：0 / 100\n状态：稳定")), 14, DeveloperConsoleStyle::PrimaryText);
 	if (UVerticalBoxSlot* RealitySlot = Cast<UVerticalBoxSlot>(RealityText->Slot))
 	{
 		RealitySlot->SetPadding(FMargin(0.0f, 18.0f, 0.0f, 0.0f));
@@ -225,6 +240,7 @@ UTextBlock* UDeveloperConsoleWidget::AddLabel(UVerticalBox* Parent, const FStrin
 	Label->SetColorAndOpacity(FSlateColor(Color));
 	FSlateFontInfo Font = Label->GetFont();
 	Font.Size = Size;
+	if (RealityDemoLanguage::IsSimplifiedChinese(this)) Font = RealityDemoLanguage::GetSimplifiedChineseFont(Size);
 	Label->SetFont(Font);
 	Label->SetAutoWrapText(true);
 	Parent->AddChildToVerticalBox(Label)->SetPadding(FMargin(0.0f, 3.0f));
@@ -239,6 +255,7 @@ UButton* UDeveloperConsoleWidget::AddButton(UVerticalBox* Parent, const FString&
 	Label->SetText(FText::FromString(Text));
 	Label->SetColorAndOpacity(FSlateColor(DeveloperConsoleStyle::PrimaryText));
 	Label->SetJustification(ETextJustify::Center);
+	if (RealityDemoLanguage::IsSimplifiedChinese(this)) Label->SetFont(RealityDemoLanguage::GetSimplifiedChineseFont(16));
 	Button->AddChild(Label);
 	Parent->AddChildToVerticalBox(Button)->SetPadding(FMargin(0.0f, 3.0f));
 	return Button;
@@ -252,6 +269,22 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	}
 
 	UDeveloperModeComponent* DeveloperComponent = DeveloperModeComponent.Get();
+	const bool bChinese = RealityDemoLanguage::IsSimplifiedChinese(this);
+	auto L = [this](const TCHAR* English, const TCHAR* Chinese) { return RealityDemoLanguage::String(this, English, Chinese); };
+	auto TranslateToken = [bChinese](const FString& Value)
+	{
+		if (!bChinese) return Value;
+		if (Value == TEXT("Normal")) return FString(TEXT("正常"));
+		if (Value == TEXT("Low")) return FString(TEXT("低"));
+		if (Value == TEXT("Zero")) return FString(TEXT("零"));
+		if (Value == TEXT("High")) return FString(TEXT("高"));
+		if (Value == TEXT("Stable")) return FString(TEXT("稳定"));
+		if (Value == TEXT("Questioning")) return FString(TEXT("质疑"));
+		if (Value == TEXT("Investigating")) return FString(TEXT("调查"));
+		if (Value == TEXT("Unstable")) return FString(TEXT("不稳定"));
+		if (Value == TEXT("Correction")) return FString(TEXT("修正"));
+		return Value;
+	};
 	URealityEditableComponent* Editable = IsValid(DeveloperComponent) ? DeveloperComponent->GetFocusedEditableComponent() : nullptr;
 	const FGameplayTag CollisionTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Collision"));
 	const FGameplayTag ScaleTag = FGameplayTag::RequestGameplayTag(TEXT("Cheat.Scale"));
@@ -262,19 +295,19 @@ void UDeveloperConsoleWidget::RefreshConsole()
 
 	if (IsValid(Editable) && IsValid(Editable->GetOwner()))
 	{
-		TargetText->SetText(FText::Format(NSLOCTEXT("RealityDemo", "DeveloperTarget", "TARGET\n{0}"), Editable->GetPlayerFacingName()));
-		TargetDetailsText->SetText(NSLOCTEXT(
-			"RealityDemo",
-			"DeveloperTargetGuidance",
-			"Choose an available property below. Restore returns that property to baseline."));
+		TargetText->SetText(FText::Format(
+			RealityDemoLanguage::Text(this, TEXT("TARGET\n{0}"), TEXT("目标\n{0}")),
+			Editable->GetPlayerFacingName()));
+		TargetDetailsText->SetText(RealityDemoLanguage::Text(this,
+			TEXT("Choose an available property below. Restore returns that property to baseline."),
+			TEXT("选择下方可用属性；“恢复”会将该属性还原到基准。")));
 	}
 	else
 	{
-		TargetText->SetText(NSLOCTEXT("RealityDemo", "NoDeveloperTarget", "TARGET\nNo Reality target selected"));
-		TargetDetailsText->SetText(NSLOCTEXT(
-			"RealityDemo",
-			"NoDeveloperTargetGuidance",
-			"Close with F6, aim at a marked object, then reopen."));
+		TargetText->SetText(RealityDemoLanguage::Text(this, TEXT("TARGET\nNo Reality target selected"), TEXT("目标\n未选择现实目标")));
+		TargetDetailsText->SetText(RealityDemoLanguage::Text(this,
+			TEXT("Close with F6, aim at a marked object, then reopen."),
+			TEXT("按 F6 关闭，对准带标记的对象后重新打开。")));
 	}
 
 	const bool bCollisionSupported = IsValid(Editable) && Editable->SupportsCheat(CollisionTag);
@@ -293,67 +326,81 @@ void UDeveloperConsoleWidget::RefreshConsole()
 	if (bCollisionSupported)
 	{
 		const bool bModified = Editable->IsCollisionModified();
-		CollisionStateText->SetText(FText::FromString(bModified ? TEXT("State: Modified") : TEXT("State: Normal")));
-		CollisionButtonText->SetText(FText::FromString(bModified ? TEXT("Restore Collision") : TEXT("Disable Collision")));
+		CollisionStateText->SetText(FText::FromString(bModified
+			? L(TEXT("State: Modified"), TEXT("状态：已修改"))
+			: L(TEXT("State: Normal"), TEXT("状态：正常"))));
+		CollisionButtonText->SetText(FText::FromString(bModified
+			? L(TEXT("Restore Collision"), TEXT("恢复碰撞"))
+			: L(TEXT("Disable Collision"), TEXT("关闭碰撞"))));
 	}
 	if (bScaleSupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityScalePreset>();
-		ScaleStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nCurrent: %s"),
-			Editable->IsScaleModified() ? TEXT("Yes") : TEXT("No"),
-			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentScalePreset())).ToString() : TEXT("Unknown"))));
+		const FString Modified = Editable->IsScaleModified() ? L(TEXT("Yes"), TEXT("是")) : L(TEXT("No"), TEXT("否"));
+		const FString Preset = PresetEnum ? PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentScalePreset())).ToString() : L(TEXT("Unknown"), TEXT("未知"));
+		ScaleStateText->SetText(FText::FromString(bChinese
+			? FString::Printf(TEXT("已修改：%s\n当前：%s"), *Modified, *Preset)
+			: FString::Printf(TEXT("Modified: %s\nCurrent: %s"), *Modified, *Preset)));
 		ScaleRestoreButton->SetVisibility(Editable->IsScaleModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (bGravitySupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityGravityPreset>();
-		GravityStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nCurrent: %s"),
-			Editable->IsGravityModified() ? TEXT("Yes") : TEXT("No"),
-			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentGravityPreset())).ToString() : TEXT("Unknown"))));
+		const FString Preset = PresetEnum ? TranslateToken(PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentGravityPreset())).ToString()) : L(TEXT("Unknown"), TEXT("未知"));
+		const FString Modified = Editable->IsGravityModified() ? L(TEXT("Yes"), TEXT("是")) : L(TEXT("No"), TEXT("否"));
+		GravityStateText->SetText(FText::FromString(bChinese
+			? FString::Printf(TEXT("已修改：%s\n当前：%s"), *Modified, *Preset)
+			: FString::Printf(TEXT("Modified: %s\nCurrent: %s"), *Modified, *Preset)));
 		GravityRestoreButton->SetVisibility(Editable->IsGravityModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (bMassSupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityMassPreset>();
-		MassStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Mass: %.2f kg\nCurrent Mass: %.2f kg"),
-			Editable->IsMassModified() ? TEXT("Yes") : TEXT("No"),
-			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentMassPreset())).ToString() : TEXT("Unknown"),
-			Editable->GetBaselineEffectiveMassKg(), Editable->GetCurrentEffectiveMassKg())));
+		const FString Modified = Editable->IsMassModified() ? L(TEXT("Yes"), TEXT("是")) : L(TEXT("No"), TEXT("否"));
+		const FString Preset = PresetEnum ? PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentMassPreset())).ToString() : L(TEXT("Unknown"), TEXT("未知"));
+		MassStateText->SetText(FText::FromString(bChinese
+			? FString::Printf(TEXT("已修改：%s\n预设：%s\n基准质量：%.2f kg\n当前质量：%.2f kg"), *Modified, *Preset, Editable->GetBaselineEffectiveMassKg(), Editable->GetCurrentEffectiveMassKg())
+			: FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Mass: %.2f kg\nCurrent Mass: %.2f kg"), *Modified, *Preset, Editable->GetBaselineEffectiveMassKg(), Editable->GetCurrentEffectiveMassKg())));
 		MassRestoreButton->SetVisibility(Editable->IsMassModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (bFrictionSupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityFrictionPreset>();
-		FrictionStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Friction: %.3f\nCurrent Friction: %.3f"),
-			Editable->IsFrictionModified() ? TEXT("Yes") : TEXT("No"),
-			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentFrictionPreset())).ToString() : TEXT("Unknown"),
-			Editable->GetBaselineFriction(), Editable->GetCurrentFriction())));
+		const FString Preset = PresetEnum ? TranslateToken(PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentFrictionPreset())).ToString()) : L(TEXT("Unknown"), TEXT("未知"));
+		const FString Modified = Editable->IsFrictionModified() ? L(TEXT("Yes"), TEXT("是")) : L(TEXT("No"), TEXT("否"));
+		FrictionStateText->SetText(FText::FromString(bChinese
+			? FString::Printf(TEXT("已修改：%s\n预设：%s\n基准摩擦力：%.3f\n当前摩擦力：%.3f"), *Modified, *Preset, Editable->GetBaselineFriction(), Editable->GetCurrentFriction())
+			: FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Friction: %.3f\nCurrent Friction: %.3f"), *Modified, *Preset, Editable->GetBaselineFriction(), Editable->GetCurrentFriction())));
 		FrictionRestoreButton->SetVisibility(Editable->IsFrictionModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (bTimeSupported)
 	{
 		const UEnum* PresetEnum = StaticEnum<ERealityTimePreset>();
-		TimeStateText->SetText(FText::FromString(FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Local: %.3fx\nCurrent Local: %.3fx\nAffects this machine only"),
-			Editable->IsTimeModified() ? TEXT("Yes") : TEXT("No"),
-			PresetEnum ? *PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentTimePreset())).ToString() : TEXT("Unknown"),
-			Editable->GetOriginalTimeDilation(), Editable->GetCurrentEffectiveTimeDilation())));
+		const FString Modified = Editable->IsTimeModified() ? L(TEXT("Yes"), TEXT("是")) : L(TEXT("No"), TEXT("否"));
+		const FString Preset = PresetEnum ? PresetEnum->GetDisplayNameTextByValue(static_cast<int64>(Editable->GetCurrentTimePreset())).ToString() : L(TEXT("Unknown"), TEXT("未知"));
+		TimeStateText->SetText(FText::FromString(bChinese
+			? FString::Printf(TEXT("已修改：%s\n预设：%s\n局部时间基准：%.3fx\n当前局部时间：%.3fx\n仅影响此机器"), *Modified, *Preset, Editable->GetOriginalTimeDilation(), Editable->GetCurrentEffectiveTimeDilation())
+			: FString::Printf(TEXT("Modified: %s\nPreset: %s\nBaseline Local: %.3fx\nCurrent Local: %.3fx\nAffects this machine only"), *Modified, *Preset, Editable->GetOriginalTimeDilation(), Editable->GetCurrentEffectiveTimeDilation())));
 		TimeRestoreButton->SetVisibility(Editable->IsTimeModified() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
-	FString RealityDisplay = TEXT("REALITY MONITOR\nSuspicion: 0 / 100\nState: Stable\nImplausible changes attract attention.");
+	FString RealityDisplay = L(TEXT("REALITY MONITOR\nSuspicion: 0 / 100\nState: Stable\nImplausible changes attract attention."), TEXT("现实监控\n怀疑度：0 / 100\n状态：稳定\n不合理的变化会引起注意。"));
 	if (const UWorld* World = GetWorld())
 	{
 		if (const URealityManagerSubsystem* Manager = World->GetSubsystem<URealityManagerSubsystem>())
 		{
 			const UEnum* StateEnum = StaticEnum<ERealityState>();
-			RealityDisplay = FString::Printf(TEXT("REALITY MONITOR\nSuspicion: %.0f / 100\nState: %s\nImplausible changes attract attention."), Manager->GetSuspicion(),
-				StateEnum ? *StateEnum->GetDisplayNameTextByValue(static_cast<int64>(Manager->GetRealityState())).ToString() : TEXT("Unknown"));
+			const FString State = StateEnum ? TranslateToken(StateEnum->GetDisplayNameTextByValue(static_cast<int64>(Manager->GetRealityState())).ToString()) : L(TEXT("Unknown"), TEXT("未知"));
+			RealityDisplay = bChinese
+				? FString::Printf(TEXT("现实监控\n怀疑度：%.0f / 100\n状态：%s\n不合理的变化会引起注意。"), Manager->GetSuspicion(), *State)
+				: FString::Printf(TEXT("REALITY MONITOR\nSuspicion: %.0f / 100\nState: %s\nImplausible changes attract attention."), Manager->GetSuspicion(), *State);
 			if (const FRealityProcessedCheatRecord* Event = Manager->GetMostRecentEvent())
 			{
-				RealityDisplay += FString::Printf(TEXT("\n\nLast Change: %s %s %+.0f\nChange: %+.0f  Observers: %+.0f  Plausibility: -%.0f\nObservers: %d  Matching conditions: %d"),
-					*DeveloperConsoleStyle::GetAbilityName(Event->CheatTag), Event->Operation == ERealityCheatOperation::Apply ? TEXT("Applied") : TEXT("Restored"),
-					Event->SuspicionDelta, Event->BaseSuspicionDelta, Event->WitnessSuspicionDelta, Event->ContextSuspicionReduction,
-					Event->ObservingWitnessCount, Event->MatchedContextCount);
+				const FString Ability = DeveloperConsoleStyle::GetLocalizedAbilityName(this, Event->CheatTag);
+				const FString Operation = Event->Operation == ERealityCheatOperation::Apply ? L(TEXT("Applied"), TEXT("已应用")) : L(TEXT("Restored"), TEXT("已恢复"));
+				RealityDisplay += bChinese
+					? FString::Printf(TEXT("\n\n最近变化：%s %s %+.0f\n变化：%+.0f  观察者：%+.0f  合理性：-%.0f\n观察者：%d  匹配条件：%d"), *Ability, *Operation, Event->SuspicionDelta, Event->BaseSuspicionDelta, Event->WitnessSuspicionDelta, Event->ContextSuspicionReduction, Event->ObservingWitnessCount, Event->MatchedContextCount)
+					: FString::Printf(TEXT("\n\nLast Change: %s %s %+.0f\nChange: %+.0f  Observers: %+.0f  Plausibility: -%.0f\nObservers: %d  Matching conditions: %d"), *Ability, *Operation, Event->SuspicionDelta, Event->BaseSuspicionDelta, Event->WitnessSuspicionDelta, Event->ContextSuspicionReduction, Event->ObservingWitnessCount, Event->MatchedContextCount);
 			}
 		}
 	}
@@ -370,16 +417,16 @@ void UDeveloperConsoleWidget::RefreshConsole()
 				Suspicion = Manager->GetSuspicion();
 				if (const UEnum* StateEnum = StaticEnum<ERealityState>())
 				{
-					StateLabel = StateEnum->GetDisplayNameTextByValue(static_cast<int64>(Manager->GetRealityState())).ToString().ToUpper();
+					StateLabel = TranslateToken(StateEnum->GetDisplayNameTextByValue(static_cast<int64>(Manager->GetRealityState())).ToString()).ToUpper();
 				}
 			}
 		}
 		const FString TargetLabel = IsValid(Editable) && IsValid(Editable->GetOwner())
 			? Editable->GetPlayerFacingName().ToString().ToUpper()
-			: TEXT("NONE");
-		ModeOverlayText->SetText(FText::FromString(FString::Printf(
-			TEXT("[ DEVELOPER MODE ]\nTARGET  %s\nREALITY  %s  |  SUSPICION %.0f"),
-			*TargetLabel, *StateLabel, Suspicion)));
+			: L(TEXT("NONE"), TEXT("无"));
+		ModeOverlayText->SetText(FText::FromString(bChinese
+			? FString::Printf(TEXT("[ 开发者模式 ]\n目标  %s\n现实  %s  |  怀疑度 %.0f"), *TargetLabel, *StateLabel, Suspicion)
+			: FString::Printf(TEXT("[ DEVELOPER MODE ]\nTARGET  %s\nREALITY  %s  |  SUSPICION %.0f"), *TargetLabel, *StateLabel, Suspicion)));
 	}
 
 	if (FeedbackText && IsValid(DeveloperComponent))
@@ -389,8 +436,8 @@ void UDeveloperConsoleWidget::RefreshConsole()
 		if (Feedback != EDeveloperOperationFeedback::None)
 		{
 			FeedbackText->SetText(FText::FromString(FString::Printf(TEXT("%s  %s"),
-				Feedback == EDeveloperOperationFeedback::Applied ? TEXT("APPLIED") : TEXT("RESTORED"),
-				*DeveloperConsoleStyle::GetAbilityName(DeveloperComponent->GetOperationFeedbackTag()).ToUpper())));
+				Feedback == EDeveloperOperationFeedback::Applied ? *L(TEXT("APPLIED"), TEXT("已应用")) : *L(TEXT("RESTORED"), TEXT("已恢复")),
+				*DeveloperConsoleStyle::GetLocalizedAbilityName(this, DeveloperComponent->GetOperationFeedbackTag()).ToUpper())));
 			FeedbackText->SetColorAndOpacity(FSlateColor(Feedback == EDeveloperOperationFeedback::Applied
 				? DeveloperConsoleStyle::Accent
 				: FLinearColor(0.45f, 1.0f, 0.62f, 1.0f)));

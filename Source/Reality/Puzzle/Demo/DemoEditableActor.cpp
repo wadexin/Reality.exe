@@ -9,6 +9,7 @@
 #include "NativeGameplayTags.h"
 #include "Reality.h"
 #include "Puzzle/Demo/DemoRecoverableComponent.h"
+#include "Puzzle/Demo/DemoLanguage.h"
 #include "UObject/ConstructorHelpers.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Demo_Collision, "Cheat.Collision");
@@ -111,6 +112,10 @@ void ADemoEditableActor::Interact_Implementation(AActor* Interactor)
 
 FText ADemoEditableActor::GetInteractionPrompt_Implementation(AActor* Interactor) const
 {
+	if (RealityDemoLanguage::IsSimplifiedChinese(this))
+	{
+		return TargetDisplayName.IsEmpty() ? FText::FromString(TEXT("推动测试物体")) : FText::FromString(TEXT("推动目标"));
+	}
 	return TargetDisplayName.IsEmpty()
 		? NSLOCTEXT("RealityDemo", "PushTarget", "Push Test Prop")
 		: FText::Format(NSLOCTEXT("RealityDemo", "PushNamedTarget", "Push {0}"), TargetDisplayName);

@@ -11,6 +11,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "InputCoreTypes.h"
+#include "Puzzle/Demo/DemoLanguage.h"
 #include "RealityPlayerController.h"
 
 void UDemoSystemMenuWidget::SetOwningRealityController(ARealityPlayerController* Controller)
@@ -46,7 +47,9 @@ void UDemoSystemMenuWidget::BuildLayout()
 	auto AddText = [this, Body](const FString& Text, const int32 SizeValue)
 	{
 		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		Label->SetText(FText::FromString(Text)); FSlateFontInfo Font = Label->GetFont(); Font.Size = SizeValue; Label->SetFont(Font);
+		Label->SetText(FText::FromString(Text)); FSlateFontInfo Font = Label->GetFont(); Font.Size = SizeValue;
+		if (RealityDemoLanguage::IsSimplifiedChinese(this)) Font = RealityDemoLanguage::GetSimplifiedChineseFont(SizeValue);
+		Label->SetFont(Font);
 		Label->SetColorAndOpacity(FSlateColor(FLinearColor(0.75f, 0.95f, 1.0f)));
 		Body->AddChildToVerticalBox(Label)->SetPadding(FMargin(0, 0, 0, 14)); return Label;
 	};
@@ -54,23 +57,25 @@ void UDemoSystemMenuWidget::BuildLayout()
 	{
 		UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass()); Label->SetText(FText::FromString(Text));
+		if (RealityDemoLanguage::IsSimplifiedChinese(this)) Label->SetFont(RealityDemoLanguage::GetSimplifiedChineseFont(16));
 		Button->SetContent(Label); Body->AddChildToVerticalBox(Button)->SetPadding(FMargin(0, 5)); return Button;
 	};
-	AddText(TEXT("SYSTEM"), 28);
-	PromptText = AddText(TEXT("Session controls"), 14);
-	ResumeButton = AddButton(TEXT("Resume")); ResumeButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleResume);
-	RestorePositionButton = AddButton(TEXT("Restore Position")); RestorePositionButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleRestorePosition);
-	RestartButton = AddButton(TEXT("Restart Demo")); RestartButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleRestartRequest);
-	ConfirmButton = AddButton(TEXT("Restart")); ConfirmButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleRestartConfirm);
-	CancelButton = AddButton(TEXT("Cancel")); CancelButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleRestartCancel);
+	auto L = [this](const TCHAR* English, const TCHAR* Chinese) { return RealityDemoLanguage::String(this, English, Chinese); };
+	AddText(L(TEXT("SYSTEM"), TEXT("系统")), 28);
+	PromptText = AddText(L(TEXT("Session controls"), TEXT("Demo 控制")), 16);
+	ResumeButton = AddButton(L(TEXT("Resume"), TEXT("继续游戏"))); ResumeButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleResume);
+	RestorePositionButton = AddButton(L(TEXT("Restore Position"), TEXT("恢复位置"))); RestorePositionButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleRestorePosition);
+	RestartButton = AddButton(L(TEXT("Restart Demo"), TEXT("重新开始 Demo"))); RestartButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleRestartRequest);
+	ConfirmButton = AddButton(L(TEXT("Restart"), TEXT("确认重新开始"))); ConfirmButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleRestartConfirm);
+	CancelButton = AddButton(L(TEXT("Cancel"), TEXT("取消"))); CancelButton->OnClicked.AddDynamic(this, &UDemoSystemMenuWidget::HandleRestartCancel);
 }
 
 void UDemoSystemMenuWidget::SetRestartConfirmation(const bool bConfirming)
 {
 	bConfirmingRestart = bConfirming;
 	if (PromptText) PromptText->SetText(bConfirming
-		? FText::FromString(TEXT("Restart Demo?\nCurrent session progress will be reset."))
-		: FText::FromString(TEXT("ESC  RESUME\nRestore Position keeps world changes.\nRestart Demo resets this session.")));
+		? RealityDemoLanguage::Text(this, TEXT("Restart Demo?\nCurrent session progress will be reset."), TEXT("重新开始 Demo？\n当前进度将被重置。"))
+		: RealityDemoLanguage::Text(this, TEXT("ESC  RESUME\nRestore Position keeps world changes.\nRestart Demo resets this session."), TEXT("ESC  返回游戏\n恢复位置会保留世界状态。\n重新开始 Demo 会重置本次流程。")));
 	if (ResumeButton) ResumeButton->SetVisibility(bConfirming ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	if (RestartButton) RestartButton->SetVisibility(bConfirming ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	if (RestorePositionButton) RestorePositionButton->SetVisibility(bConfirming ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);

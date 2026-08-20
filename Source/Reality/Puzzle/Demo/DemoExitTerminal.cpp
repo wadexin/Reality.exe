@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Reality.h"
+#include "Puzzle/Demo/DemoLanguage.h"
 #include "UObject/ConstructorHelpers.h"
 
 ADemoExitTerminal::ADemoExitTerminal()
@@ -48,8 +49,8 @@ void ADemoExitTerminal::Interact_Implementation(AActor* Interactor)
 FText ADemoExitTerminal::GetInteractionPrompt_Implementation(AActor* Interactor) const
 {
 	return bDemoCompleted
-		? NSLOCTEXT("RealityDemo", "DemoCompletedPrompt", "Demo Complete")
-		: NSLOCTEXT("RealityDemo", "CompleteDemoPrompt", "E: Complete Demo");
+		? RealityDemoLanguage::Text(this, TEXT("Demo Complete"), TEXT("Demo 已完成"))
+		: RealityDemoLanguage::Text(this, TEXT("E: Complete Demo"), TEXT("E：完成 Demo"));
 }
 
 bool ADemoExitTerminal::CompleteDemo(AActor* CompletingActor)
@@ -71,11 +72,13 @@ bool ADemoExitTerminal::CompleteDemo(AActor* CompletingActor)
 
 	const FString StateName = StaticEnum<ERealityState>()->GetDisplayNameTextByValue(static_cast<int64>(FinalRealityState)).ToString();
 	const FText CompletionText = FText::Format(
-		NSLOCTEXT("RealityDemo", "CompletionFormat", "DEMO COMPLETE\nSUSPICION: {0}\nREALITY: {1}"),
+		RealityDemoLanguage::Text(this, TEXT("DEMO COMPLETE\nSUSPICION: {0}\nREALITY: {1}"), TEXT("DEMO 已完成\n怀疑度：{0}\n现实状态：{1}")),
 		FText::AsNumber(FMath::RoundToInt(FinalSuspicion)),
 		FText::FromString(StateName));
-	TerminalLabel->SetText(CompletionText);
 	TerminalLabel->SetTextRenderColor(FColor::Green);
+	RealityDemoLanguage::SetWorldText(TerminalLabel, this,
+		FText::Format(FText::FromString(TEXT("DEMO COMPLETE\nSUSPICION: {0}\nREALITY: {1}")), FText::AsNumber(FMath::RoundToInt(FinalSuspicion)), FText::FromString(StateName)),
+		CompletionText);
 	UE_LOG(LogReality, Log, TEXT("Demo completed by '%s'. Suspicion=%.1f State=%s."), *GetNameSafe(CompletingActor), FinalSuspicion, *StateName);
 #if !UE_BUILD_SHIPPING
 	if (GEngine)
