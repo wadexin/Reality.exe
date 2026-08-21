@@ -47,14 +47,16 @@ ARealityCharacter::ARealityCharacter()
 		FirstPersonMesh->SetMaterial(1, TechnicianUpperMaterial.Object);
 	}
 
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> DeveloperAccessMesh(TEXT("/Game/Characters/Reality/DeveloperAccess/SM_RLT_DeveloperAccess.SM_RLT_DeveloperAccess"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> HousingMaterial(TEXT("/Game/Reality/Environment/Materials/Instances/MI_RLT_Metal_Charcoal.MI_RLT_Metal_Charcoal"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> IndicatorMaterial(TEXT("/Game/Reality/Environment/Materials/Instances/MI_RLT_Indicator_Managed.MI_RLT_Indicator_Managed"));
+	const FQuat DeveloperAccessViewRotation(FVector::ForwardVector, FMath::DegreesToRadians(-65.0f));
 
 	DeveloperAccessHousing = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Developer Access Housing"));
 	DeveloperAccessHousing->SetupAttachment(FirstPersonMesh, TEXT("lowerarm_l"));
-	DeveloperAccessHousing->SetRelativeLocation(FVector(12.0f, -2.5f, 4.0f));
-	DeveloperAccessHousing->SetRelativeScale3D(FVector(0.11f, 0.055f, 0.02f));
+	DeveloperAccessHousing->SetRelativeLocation(FVector(12.0f, 2.841f, 4.083f));
+	DeveloperAccessHousing->SetRelativeRotation(DeveloperAccessViewRotation * FRotator(0.0f, -90.0f, 0.0f).Quaternion());
+	DeveloperAccessHousing->SetRelativeScale3D(FVector(0.084f, 0.14f, 0.09f));
 	DeveloperAccessHousing->SetOnlyOwnerSee(true);
 	DeveloperAccessHousing->SetCollisionProfileName(TEXT("NoCollision"));
 	DeveloperAccessHousing->SetCastShadow(false);
@@ -62,21 +64,21 @@ ARealityCharacter::ARealityCharacter()
 
 	DeveloperAccessIndicator = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Developer Access Indicator"));
 	DeveloperAccessIndicator->SetupAttachment(FirstPersonMesh, TEXT("lowerarm_l"));
-	DeveloperAccessIndicator->SetRelativeLocation(FVector(12.0f, -2.5f, 5.15f));
-	DeveloperAccessIndicator->SetRelativeScale3D(FVector(0.025f, 0.012f, 0.005f));
+	DeveloperAccessIndicator->SetRelativeLocation(FVector(12.0f, 5.134f, 5.152f));
+	DeveloperAccessIndicator->SetRelativeRotation(DeveloperAccessViewRotation);
+	DeveloperAccessIndicator->SetRelativeScale3D(FVector(0.058f, 0.0055f, 0.0008f));
 	DeveloperAccessIndicator->SetOnlyOwnerSee(true);
 	DeveloperAccessIndicator->SetCollisionProfileName(TEXT("NoCollision"));
 	DeveloperAccessIndicator->SetCastShadow(false);
 	DeveloperAccessIndicator->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 
+	if (DeveloperAccessMesh.Succeeded())
+	{
+		DeveloperAccessHousing->SetStaticMesh(DeveloperAccessMesh.Object);
+	}
 	if (CubeMesh.Succeeded())
 	{
-		DeveloperAccessHousing->SetStaticMesh(CubeMesh.Object);
 		DeveloperAccessIndicator->SetStaticMesh(CubeMesh.Object);
-	}
-	if (HousingMaterial.Succeeded())
-	{
-		DeveloperAccessHousing->SetMaterial(0, HousingMaterial.Object);
 	}
 	if (IndicatorMaterial.Succeeded())
 	{

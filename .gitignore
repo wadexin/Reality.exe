@@ -23,3 +23,8 @@ Thumbs.db
 *.opensdf
 *.sdf
 *.cache
+
+SourceAssets/
+
+Build/
+SourceAssets/
